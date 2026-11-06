@@ -1,4 +1,5 @@
-import type { Vehicle } from "../api/types";
+import type { InsufficientEvidence, StopAlert, Vehicle } from "../api/types";
+import { formatObservedDuration } from "../lib/duration";
 import { ageSeconds, formatAge, formatLocal } from "../lib/freshness";
 
 interface Props {
@@ -7,9 +8,13 @@ interface Props {
   stale: boolean;
   staleAfterSeconds: number;
   onClose: () => void;
+  alerts: StopAlert[];
+  insufficient: InsufficientEvidence | undefined;
 }
 
-export function VehicleDetail({ vehicle, now, stale, staleAfterSeconds, onClose }: Props) {
+export function VehicleDetail({
+  vehicle, now, stale, staleAfterSeconds, onClose, alerts, insufficient,
+}: Props) {
   if (!vehicle) {
     return (
       <section className="detail-panel detail-empty" aria-label="Detalle">
@@ -31,14 +36,28 @@ export function VehicleDetail({ vehicle, now, stale, staleAfterSeconds, onClose 
           Posición desactualizada: la última lectura tiene más de {formatThreshold(staleAfterSeconds)}.
         </p>
       )}
+      {alerts.map((a) => (
+        <p key={a.alert_id} className="notice notice-error">
+          <strong>Detenido en {a.zone_name}</strong>
+          <span className="hint-block">
+            Duración observada: {formatObservedDuration(a.observed_duration_s, a.start_unknown)}
+          </span>
+          <span className="hint-block">
+            Desde {formatLocal(a.started_at)}
+            {a.start_unknown ? " (inicio exacto desconocido: el tramo empieza en el límite de la ventana)" : ""}
+          </span>
+          <span className="hint-block">Última muestra {formatLocal(a.last_sample_at)}</span>
+        </p>
+      ))}
+      {insufficient && (
+        <p className="notice notice-warn">Alertas: evidencia insuficiente. {insufficient.detail}</p>
+      )}
       <dl className="detail-grid">
         <dt>Velocidad</dt>
         <dd>
           <span className="big">{vehicle.speed_kmh.toFixed(1)}</span> km/h
           <span className="hint">
-            {vehicle.speed_kmh === 0
-              ? "0 km/h en la última lectura recibida. La duración de la detención aún no se calcula."
-              : "Velocidad de la última lectura recibida."}
+            Velocidad de la última lectura recibida.
           </span>
         </dd>
         <dt>Coordenadas</dt>

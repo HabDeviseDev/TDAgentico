@@ -1,12 +1,14 @@
 import { useCallback, useMemo, useState, type ReactNode } from "react";
 import type { Vehicle } from "./api/types";
 import type { PortalConfig } from "./config";
+import { AlertsPanel } from "./components/AlertsPanel";
 import { MapView } from "./components/MapView";
 import { StatusBar } from "./components/StatusBar";
 import { VehicleDetail } from "./components/VehicleDetail";
 import { VehicleList } from "./components/VehicleList";
 import { useNow } from "./hooks/useNow";
 import { useVehicleStream } from "./hooks/useVehicleStream";
+import { useZones } from "./hooks/useZones";
 import { browserTimeZone, formatTimeLocal, isStale } from "./lib/freshness";
 
 const STREAM_URL = "/v1/vehicles/stream";
@@ -15,6 +17,7 @@ export function App({ config }: { config: PortalConfig }) {
   const [state, dispatch] = useVehicleStream(STREAM_URL, config.connectionTimeoutSeconds);
   const [query, setQuery] = useState("");
   const now = useNow(5_000);
+  const zones = useZones();
 
   const isVehicleStale = useCallback(
     (v: Vehicle) => isStale(v.captured_at, now, config.staleAfterSeconds),
@@ -32,6 +35,18 @@ export function App({ config }: { config: PortalConfig }) {
 
   const selected = state.vehicles.find((v) => v.vehicle_id === state.selectedId);
   const staleCount = state.vehicles.filter(isVehicleStale).length;
+
+  const alertVehicleIds = useMemo(
+    () => new Set((state.alerts?.alerts ?? []).map((a) => a.vehicle_id)),
+    [state.alerts],
+  );
+  const selectedAlerts = (state.alerts?.alerts ?? []).filter((a) => a.vehicle_id === state.selectedId);
+  const selectedInsufficient = state.alerts?.insufficient_evidence.find(
+    (i) => i.vehicle_id === state.selectedId,
+  );
+  const alertsOutdated =
+    state.alerts !== null && (state.alertsState === "degraded" || state.connection === "lost");
+  const hasDemoZones = zones.zones.some((z) => z.is_demo);
 
   const content = (() => {
     if (!state.hasSnapshot) {
@@ -74,6 +89,8 @@ export function App({ config }: { config: PortalConfig }) {
           connection={state.connection}
           data={state.data}
           snapshotAt={state.snapshotAt}
+          alertCount={state.alerts?.alert_count ?? null}
+          alertsOutdated={alertsOutdated}
         />
       </header>
 
@@ -98,16 +115,41 @@ export function App({ config }: { config: PortalConfig }) {
             selectedId={state.selectedId}
             isVehicleStale={isVehicleStale}
             onSelect={select}
+            zones={zones.zones}
+            alertVehicleIds={alertVehicleIds}
           />
           {content && <div className="map-overlay">{content}</div>}
+          <div className="map-legend" aria-label="Leyenda del mapa">
+            {hasDemoZones && (
+              <span>
+                <span className="legend-zone" aria-hidden="true" /> Zonas de demostración (ficticias)
+              </span>
+            )}
+            <span>
+              <span className="legend-dot legend-alert" aria-hidden="true" /> Con alerta de detención
+            </span>
+            {zones.error && <span className="legend-error">Zonas no disponibles: reintentando…</span>}
+          </div>
         </div>
         <aside className="sidebar">
+          <AlertsPanel
+            alerts={state.alerts}
+            alertsState={state.alertsState}
+            alertsDetail={state.alertsDetail}
+            lastEvaluationAt={state.alertsLastEvaluationAt}
+            connection={state.connection}
+            selectedId={state.selectedId}
+            onSelect={select}
+            now={now}
+          />
           <VehicleDetail
             vehicle={selected}
             now={now}
             stale={selected ? isVehicleStale(selected) : false}
             staleAfterSeconds={config.staleAfterSeconds}
             onClose={() => select(null)}
+            alerts={selectedAlerts}
+            insufficient={selectedInsufficient}
           />
           <VehicleList
             vehicles={filtered}

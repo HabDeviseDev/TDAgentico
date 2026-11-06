@@ -25,6 +25,11 @@ def get_hub(request: Request) -> SnapshotHub:
     return request.app.state.snapshot_hub
 
 
+def get_extra_hubs(request: Request) -> tuple:
+    """Hubs adicionales que comparten el stream (alertas)."""
+    return tuple(getattr(request.app.state, "stream_extra_hubs", ()))
+
+
 @router.get("", response_model=VehiclesResponse,
             responses={503: {"description": "La base de datos no respondió"}})
 async def list_vehicles(repo: VehicleRepository = Depends(get_repository)) -> VehiclesResponse:
@@ -44,13 +49,14 @@ async def list_vehicles(repo: VehicleRepository = Depends(get_repository)) -> Ve
 @router.get("/stream", response_class=StreamingResponse,
             responses={200: {"content": {"text/event-stream": {}}},
                        503: {"description": "Demasiados clientes SSE"}})
-async def stream_vehicles(hub: SnapshotHub = Depends(get_hub)) -> StreamingResponse:
+async def stream_vehicles(hub: SnapshotHub = Depends(get_hub),
+                          extra_hubs: tuple = Depends(get_extra_hubs)) -> StreamingResponse:
     if hub.subscriber_count >= settings.sse_max_clients:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Demasiados clientes SSE")
 
     async def body():
         try:
-            async for chunk in client_stream(hub, settings.sse_heartbeat_s):
+            async for chunk in client_stream(hub, settings.sse_heartbeat_s, *extra_hubs):
                 yield chunk
         except TooManySubscribers:
             return

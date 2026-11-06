@@ -89,10 +89,11 @@ class SnapshotHub:
     def subscriber_count(self) -> int:
         return len(self._subscribers)
 
-    def subscribe(self) -> Subscription:
+    def subscribe(self, sub: Subscription | None = None) -> Subscription:
+        """Registra un buzón (nuevo, o uno compartido con otro hub)."""
         if len(self._subscribers) >= self._max_subscribers:
             raise TooManySubscribers()
-        sub = Subscription()
+        sub = sub or Subscription()
         self._subscribers.add(sub)
         # Al conectar: estado de la lectura y snapshot completo actual.
         if self._status_event is not None:

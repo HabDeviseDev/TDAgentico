@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
-import { CircleMarker, MapContainer, TileLayer, Tooltip, useMap } from "react-leaflet";
+import { Circle, CircleMarker, MapContainer, TileLayer, Tooltip, useMap } from "react-leaflet";
 import type { LatLngBoundsExpression } from "leaflet";
-import type { Vehicle } from "../api/types";
+import type { Vehicle, Zone } from "../api/types";
 
 const BOGOTA: [number, number] = [4.65, -74.08];
 
@@ -10,6 +10,9 @@ interface Props {
   selectedId: string | null;
   isVehicleStale: (v: Vehicle) => boolean;
   onSelect: (vehicleId: string) => void;
+  zones: Zone[];
+  /** Vehículos con al menos una alerta activa. */
+  alertVehicleIds: Set<string>;
 }
 
 /** Encuadra todos los vehículos la primera vez que llegan datos. */
@@ -41,7 +44,9 @@ function FollowSelection({ vehicle }: { vehicle: Vehicle | undefined }) {
   return null;
 }
 
-export function MapView({ vehicles, selectedId, isVehicleStale, onSelect }: Props) {
+export function MapView({
+  vehicles, selectedId, isVehicleStale, onSelect, zones, alertVehicleIds,
+}: Props) {
   const selected = vehicles.find((v) => v.vehicle_id === selectedId);
   return (
     <MapContainer center={BOGOTA} zoom={12} className="map" scrollWheelZoom>
@@ -50,9 +55,30 @@ export function MapView({ vehicles, selectedId, isVehicleStale, onSelect }: Prop
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         maxZoom={19}
       />
+      {zones.map((z) => (
+        <Circle
+          key={z.zone_id}
+          center={[z.center_lat, z.center_lon]}
+          radius={z.radius_m}
+          interactive={false}
+          pathOptions={{
+            color: "#c5221f",
+            weight: 2,
+            dashArray: z.is_demo ? "6 6" : undefined,
+            fillColor: "#c5221f",
+            fillOpacity: 0.08,
+          }}
+        >
+          <Tooltip permanent direction="center" className="zone-label">
+            {z.name}
+            {z.is_demo && !z.name.toLowerCase().startsWith("demo") ? " (demo)" : ""}
+          </Tooltip>
+        </Circle>
+      ))}
       {vehicles.map((v) => {
         const isSelected = v.vehicle_id === selectedId;
         const stale = isVehicleStale(v);
+        const alerting = alertVehicleIds.has(v.vehicle_id);
         return (
           <CircleMarker
             key={v.vehicle_id}
@@ -61,13 +87,14 @@ export function MapView({ vehicles, selectedId, isVehicleStale, onSelect }: Prop
             pathOptions={{
               color: isSelected ? "#0b3d91" : "#ffffff",
               weight: isSelected ? 3 : 2,
-              fillColor: stale ? "#9aa3ad" : "#1a73e8",
+              fillColor: alerting ? "#c5221f" : stale ? "#9aa3ad" : "#1a73e8",
               fillOpacity: 0.95,
             }}
             eventHandlers={{ click: () => onSelect(v.vehicle_id) }}
           >
             <Tooltip direction="top" offset={[0, -8]}>
               {v.vehicle_id} · {Math.round(v.speed_kmh)} km/h{stale ? " · desactualizado" : ""}
+              {alerting ? " · alerta de detención" : ""}
             </Tooltip>
           </CircleMarker>
         );

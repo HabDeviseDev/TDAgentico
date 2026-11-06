@@ -28,5 +28,31 @@ class Settings:
     sse_heartbeat_s: float = float(os.getenv("SSE_HEARTBEAT_S", "15"))
     sse_max_clients: int = int(os.getenv("SSE_MAX_CLIENTS", "500"))
 
+    # Regla de detención en zonas críticas (valores iniciales de demostración).
+    alert_max_speed_kmh: float = float(os.getenv("ALERT_MAX_SPEED_KMH", "3"))
+    alert_max_displacement_m: float = float(os.getenv("ALERT_MAX_DISPLACEMENT_M", "50"))
+    alert_max_gap_s: float = float(os.getenv("ALERT_MAX_GAP_S", "120"))
+    alert_max_sample_age_s: float = float(os.getenv("ALERT_MAX_SAMPLE_AGE_S", "120"))
+    # Alerta cuando la duración observada es MAYOR que este valor.
+    alert_after_s: float = float(os.getenv("ALERT_AFTER_S", "1200"))
+    # Ventana de historial que se evalúa.
+    alert_window_s: float = float(os.getenv("ALERT_WINDOW_S", "7200"))
+    # Topes por evaluación; si se alcanzan, el resultado se marca parcial.
+    alerts_max_vehicles: int = int(os.getenv("ALERTS_MAX_VEHICLES", "1000"))
+    alerts_max_rows: int = int(os.getenv("ALERTS_MAX_ROWS", "100000"))
+    # Cada cuánto la instancia reevalúa las alertas para el SSE.
+    alerts_eval_interval_s: float = float(os.getenv("ALERTS_EVAL_INTERVAL_S", "5"))
+
+    def stop_rule_params(self):
+        from .alerts.rules import StopRuleParams
+        return StopRuleParams(
+            max_speed_kmh=self.alert_max_speed_kmh,
+            max_displacement_m=self.alert_max_displacement_m,
+            max_gap_s=self.alert_max_gap_s,
+            max_sample_age_s=self.alert_max_sample_age_s,
+            alert_after_s=self.alert_after_s,
+            window_s=self.alert_window_s,
+        )
+
 
 settings = Settings()

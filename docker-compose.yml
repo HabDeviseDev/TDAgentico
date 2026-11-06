@@ -109,6 +109,16 @@ services:
       VEHICLES_POLL_INTERVAL_S: ${VEHICLES_POLL_INTERVAL_S:-1}
       SSE_HEARTBEAT_S: ${SSE_HEARTBEAT_S:-15}
       SSE_MAX_CLIENTS: "500"
+      # Regla de detención en zonas (valores iniciales de demostración).
+      ALERT_MAX_SPEED_KMH: ${ALERT_MAX_SPEED_KMH:-3}
+      ALERT_MAX_DISPLACEMENT_M: ${ALERT_MAX_DISPLACEMENT_M:-50}
+      ALERT_MAX_GAP_S: ${ALERT_MAX_GAP_S:-120}
+      ALERT_MAX_SAMPLE_AGE_S: ${ALERT_MAX_SAMPLE_AGE_S:-120}
+      ALERT_AFTER_S: ${ALERT_AFTER_S:-1200}
+      ALERT_WINDOW_S: ${ALERT_WINDOW_S:-7200}
+      ALERTS_MAX_VEHICLES: ${ALERTS_MAX_VEHICLES:-1000}
+      ALERTS_MAX_ROWS: ${ALERTS_MAX_ROWS:-100000}
+      ALERTS_EVAL_INTERVAL_S: ${ALERTS_EVAL_INTERVAL_S:-5}
     depends_on:
       kafka-init:
         condition: service_completed_successfully
@@ -169,6 +179,19 @@ services:
       api:
         condition: service_healthy
 
+  # Escenarios de demostración de alertas (datos ficticios, vehículos DEMO-*):
+  # docker compose --profile demo run --rm demo-alerts
+  demo-alerts:
+    profiles: ["demo"]
+    image: python:3.12-slim
+    volumes:
+      - ./scripts:/scripts:ro
+    entrypoint: ["python", "-u", "/scripts/demo_alerts.py", "--url", "http://api:8000"]
+    stop_signal: SIGINT
+    depends_on:
+      api:
+        condition: service_healthy
+
   # Pruebas: docker compose --profile test run --rm tests
   tests:
     profiles: ["test"]
@@ -183,6 +206,7 @@ services:
       KAFKA_GROUP_ID: fleet-ingestion
       DB_READ_TIMEOUT_S: ${DB_READ_TIMEOUT_S:-3}
       VEHICLES_POLL_INTERVAL_S: ${VEHICLES_POLL_INTERVAL_S:-1}
+      ALERTS_EVAL_INTERVAL_S: ${ALERTS_EVAL_INTERVAL_S:-5}
     depends_on:
       api:
         condition: service_healthy

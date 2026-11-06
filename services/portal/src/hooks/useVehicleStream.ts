@@ -1,13 +1,16 @@
 import { useEffect, useReducer } from "react";
-import type { HeartbeatEvent, SnapshotEvent, StatusEvent } from "../api/types";
+import type {
+  AlertsEvent, AlertsStatusEvent, HeartbeatEvent, SnapshotEvent, StatusEvent,
+} from "../api/types";
 import { fleetReducer, initialState } from "../state/fleetState";
 
 const MAX_BACKOFF_MS = 30_000;
 
 /**
- * Conecta a /v1/vehicles/stream. El SSE es la única fuente de datos del
- * portal: el primer snapshot llega al conectar y cada reconexión trae uno
- * completo, así no hay carrera entre una carga REST y el tiempo real.
+ * Conecta a /v1/vehicles/stream. El SSE es la única fuente de posiciones y
+ * alertas del portal: al conectar (y en cada reconexión) llegan el snapshot y
+ * el resultado de alertas completos, así no hay carrera entre una carga REST
+ * y el tiempo real.
  */
 export function useVehicleStream(url: string, connectionTimeoutSeconds: number) {
   const [state, dispatch] = useReducer(fleetReducer, initialState);
@@ -54,6 +57,14 @@ export function useVehicleStream(url: string, connectionTimeoutSeconds: number) 
       es.addEventListener(
         "status",
         parse<StatusEvent>((event, at) => dispatch({ type: "status", event, at })),
+      );
+      es.addEventListener(
+        "alerts",
+        parse<AlertsEvent>((event, at) => dispatch({ type: "alerts", event, at })),
+      );
+      es.addEventListener(
+        "alerts_status",
+        parse<AlertsStatusEvent>((event, at) => dispatch({ type: "alerts_status", event, at })),
       );
       es.addEventListener(
         "heartbeat",

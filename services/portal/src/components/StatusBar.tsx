@@ -7,6 +7,9 @@ interface Props {
   connection: ConnectionState;
   data: DataState;
   snapshotAt: string | null;
+  /** null: todavía no hay resultado de alertas. */
+  alertCount: number | null;
+  alertsOutdated: boolean;
 }
 
 const connectionLabel: Record<ConnectionState, string> = {
@@ -21,7 +24,9 @@ const dataLabel: Record<DataState, string> = {
   degraded: "Datos: BD sin respuesta",
 };
 
-export function StatusBar({ total, staleCount, connection, data, snapshotAt }: Props) {
+export function StatusBar({
+  total, staleCount, connection, data, snapshotAt, alertCount, alertsOutdated,
+}: Props) {
   return (
     <div className="status-bar" role="status" aria-live="polite">
       <span className="metric">
@@ -32,6 +37,14 @@ export function StatusBar({ total, staleCount, connection, data, snapshotAt }: P
           <strong>{staleCount}</strong> desactualizado{staleCount === 1 ? "" : "s"}
         </span>
       )}
+      <span
+        className={`metric${alertCount ? " metric-alert" : ""}`}
+        title={alertsOutdated ? "Último resultado conocido: puede no estar actualizado" : "Alertas de detención activas"}
+      >
+        <strong>{alertCount === null ? "–" : alertCount}</strong>{" "}
+        {alertCount === 1 ? "alerta" : "alertas"}
+        {alertsOutdated ? " (desactualizado)" : ""}
+      </span>
       <span className={`pill pill-${connection}`} title="Conexión con el servidor">
         <span className="dot" aria-hidden="true" />
         {connectionLabel[connection]}
