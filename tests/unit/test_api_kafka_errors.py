@@ -14,6 +14,7 @@ import pytest
 from aiokafka.errors import KafkaConnectionError, NotEnoughReplicasError
 from fastapi.testclient import TestClient
 
+from app import ingest
 from app import main as api_main
 
 
@@ -75,7 +76,7 @@ def test_503_cuando_kafka_rechaza_el_envio(client_with, behavior):
 
 
 def test_503_cuando_kafka_no_confirma_a_tiempo(client_with, monkeypatch):
-    monkeypatch.setattr(api_main, "SEND_TIMEOUT_S", 0.2)
+    monkeypatch.setattr(ingest, "SEND_TIMEOUT_S", 0.2)
     client, fake = client_with("no_ack")
     resp = client.post("/v1/positions", json=valid_event())
     assert resp.status_code == 503

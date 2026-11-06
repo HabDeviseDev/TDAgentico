@@ -31,7 +31,7 @@ WAIT_TIMEOUT_S = float(os.getenv("WAIT_TIMEOUT_S", "30"))
 
 
 def make_event(vehicle_id: str, captured_at: datetime, *, event_id: uuid.UUID | None = None,
-               lat: float = -33.44889, lon: float = -70.669265, speed_kmh: float = 42.5) -> dict:
+               lat: float = 4.6486, lon: float = -74.0628, speed_kmh: float = 42.5) -> dict:
     return {
         "schema_version": 1,
         "event_id": str(event_id or uuid.uuid4()),

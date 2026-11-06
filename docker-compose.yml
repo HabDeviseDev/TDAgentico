@@ -101,8 +101,16 @@ services:
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KAFKA_SEND_TIMEOUT_S: "5"
+      DATABASE_URL: postgresql://fleet:fleet@timescaledb:5432/fleet
+      DB_POOL_MAX: "5"
+      # Lectura compartida de vehicle_current_position para el SSE.
+      VEHICLES_POLL_INTERVAL_S: ${VEHICLES_POLL_INTERVAL_S:-1}
+      SSE_HEARTBEAT_S: ${SSE_HEARTBEAT_S:-15}
+      SSE_MAX_CLIENTS: "500"
     depends_on:
       kafka-init:
+        condition: service_completed_successfully
+      migrate:
         condition: service_completed_successfully
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
@@ -128,6 +136,37 @@ services:
         condition: service_completed_successfully
     restart: unless-stopped
 
+  # Portal React servido por nginx, con proxy de /v1 (REST y SSE) a la API.
+  portal:
+    build:
+      context: services/portal
+    ports:
+      # 8088 por defecto (en este equipo 8080 lo usa el listener de Oracle).
+      - "${PORTAL_PORT:-8088}:80"
+    environment:
+      API_UPSTREAM: api:8000
+      PORTAL_STALE_AFTER_SECONDS: ${PORTAL_STALE_AFTER_SECONDS:-120}
+      PORTAL_CONNECTION_TIMEOUT_SECONDS: "45"
+      PORTAL_SSE_READ_TIMEOUT: 120s
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Simulador de demostración: docker compose --profile demo up simulator
+  simulator:
+    profiles: ["demo"]
+    image: python:3.12-slim
+    volumes:
+      - ./scripts:/scripts:ro
+    command: >
+      python -u /scripts/simulate.py --url http://api:8000
+      --vehicles ${SIM_VEHICLES:-8} --interval ${SIM_INTERVAL:-2} --duration ${SIM_DURATION:-0}
+    stop_signal: SIGINT
+    depends_on:
+      api:
+        condition: service_healthy
+
   # Pruebas: docker compose --profile test run --rm tests
   tests:
     profiles: ["test"]
@@ -136,6 +175,7 @@ services:
       dockerfile: tests/Dockerfile
     environment:
       API_URL: http://api:8000
+      PORTAL_URL: http://portal
       DATABASE_URL: postgresql://fleet:fleet@timescaledb:5432/fleet
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KAFKA_GROUP_ID: fleet-ingestion
@@ -143,6 +183,8 @@ services:
       api:
         condition: service_healthy
       consumer:
+        condition: service_started
+      portal:
         condition: service_started
 
 volumes:

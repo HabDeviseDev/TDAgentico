@@ -1,0 +1,56 @@
+# Plantilla procesada por envsubst al arrancar la imagen oficial de nginx.
+# Solo se sustituyen variables de entorno definidas (API_UPSTREAM,
+# PORTAL_*); las variables de nginx como $host quedan intactas.
+
+server {
+    listen 80;
+    server_name _;
+    root /usr/share/nginx/html;
+
+    # Configuración en tiempo de ejecución para la SPA.
+    location = /config.json {
+        default_type application/json;
+        add_header Cache-Control "no-store";
+        return 200 '{"staleAfterSeconds": ${PORTAL_STALE_AFTER_SECONDS}, "connectionTimeoutSeconds": ${PORTAL_CONNECTION_TIMEOUT_SECONDS}}';
+    }
+
+    # SSE: sin buffering ni compresión, conexión persistente hacia la API.
+    location = /v1/vehicles/stream {
+        proxy_pass http://${API_UPSTREAM};
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_buffering off;
+        proxy_cache off;
+        gzip off;
+        # La API envía un heartbeat cada SSE_HEARTBEAT_S (15 s): el tiempo de
+        # espera entre lecturas debe ser bastante mayor para no cortar el stream.
+        proxy_read_timeout ${PORTAL_SSE_READ_TIMEOUT};
+        proxy_send_timeout ${PORTAL_SSE_READ_TIMEOUT};
+    }
+
+    # REST (consulta e ingesta) desde el mismo origen del portal.
+    location /v1/ {
+        proxy_pass http://${API_UPSTREAM};
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_read_timeout 30s;
+    }
+
+    location = /health {
+        proxy_pass http://${API_UPSTREAM};
+    }
+
+    # Archivos con hash de Vite: caché larga.
+    location /assets/ {
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        try_files $uri =404;
+    }
+
+    location / {
+        add_header Cache-Control "no-cache";
+        try_files $uri /index.html;
+    }
+}

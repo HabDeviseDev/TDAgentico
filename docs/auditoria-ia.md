@@ -30,3 +30,22 @@ Registro de decisiones e intervenciones del asistente de IA (Claude Code) en est
 | 17 | Error de la IA, corregido | El ejemplo del README y el script de verificación usaban `captured_at` `2026-11-06T10:00:00Z`, que era futuro en ese momento. La API lo rechazó con `422` y la primera verificación de persistencia no dejó mensaje pendiente. Se cambió a `2026-11-05T10:00:00Z` y se repitió. |
 | 18 | Verificación | Con el consumidor detenido y lag 1, el contenedor de Kafka se eliminó y recreó (nuevo ID de contenedor, mismos volúmenes). Offsets y lag quedaron idénticos, y al arrancar el consumidor se procesó el pendiente. |
 | 19 | Verificación | Suite en contenedor: 27 pruebas pasaron y AT-4 se omitió. AT-4 a mano: pasó. API con Kafka detenido: `503` en 5,2 s. |
+
+## 2026-11-06: Etapa 2, portal en tiempo real (rama `feat/portal-tiempo-real`)
+
+| # | Tipo | Qué ocurrió |
+|---|---|---|
+| 20 | Intervención | Se leyó el repositorio y el README. No hay archivos de instrucciones (`CLAUDE.md`, `AGENTS.md`). La rama se creó desde `706ae14`, que ya estaba en `origin/feat/ingesta-posiciones`. |
+| 21 | Decisión de la IA | La ingesta se movió de `main.py` a `app/ingest.py`. La consulta quedó en `app/vehicles/` (`repository`, `snapshots`, `sse`, `routes`), con `db.py` y `settings.py` aparte. La prueba unitaria existente se ajustó para parchear `ingest.SEND_TIMEOUT_S`. |
+| 22 | Decisión de la IA | Pool `psycopg_pool.AsyncConnectionPool` con `autocommit`, `check_connection` y `open(wait=False)`: la API arranca aunque la BD no responda y el hub informa `degraded`. |
+| 23 | Decisión de la IA | Para detectar cambios se compara el contenido completo de la tabla, no `max(updated_at)`. `updated_at` toma la hora de inicio de la transacción, así que un `COMMIT` más tardío con un `now()` anterior podría pasar desapercibido. |
+| 24 | Decisión de la IA | Buzón por cliente con como máximo un evento por tipo (`status`, `snapshot`), para que un cliente lento no acumule memoria. Límite de 500 clientes SSE por instancia. |
+| 25 | Decisión de la IA | Umbral de antigüedad configurable en tiempo de ejecución: nginx genera `/config.json` con `envsubst` a partir de `PORTAL_STALE_AFTER_SECONDS`. |
+| 26 | Intervención | Node 16 en el host no sirve para Vite 5. El `package-lock.json` se generó y el portal se construyó y probó en contenedores `node:20.18-alpine`. |
+| 27 | Intervención | El puerto 8080 estaba ocupado por `TNSLSNR` (listener de Oracle) y `docker compose up` falló. No se tocó ese proceso: el portal usa `PORTAL_PORT`, 8088 por defecto. |
+| 28 | Decisión de la IA | La coordenada por defecto de `make_event` en las pruebas pasó de Santiago de Chile a Bogotá. Los vehículos de pruebas anteriores siguen en la BD con coordenadas de Santiago y no se borraron. |
+| 29 | Verificación | Pruebas en contenedor: 49 pasaron y AT-4 se omitió. Portal: tipos, build y 10 pruebas de Vitest pasaron. AT-4 a mano: pasó. |
+| 30 | Verificación | Con el stack real y un cliente SSE abierto por el proxy se detuvo TimescaleDB. Llegaron `status: degraded` y heartbeats; al arrancarla, `status: ok` y un snapshot nuevo. El log registró el fallo una sola vez (`PoolTimeout`). |
+| 31 | Verificación | Simulador: 240 s con 8 vehículos, 952 posiciones enviadas y 0 fallidas. En el servicio `simulator`, `docker compose stop` (SIGINT) terminó con código 0 y resumen. El reintento con el mismo `event_id` se probó con un servidor local controlado (`503`, `503`, `202`); no se provocó contra el stack real. |
+| 32 | Verificación en navegador | En el navegador integrado de la app, con el simulador activo, se comprobó: actualización del detalle y del marcador sin recargar la página, selección desde la lista y desde el mapa, buscador, pérdida de conexión (proxy detenido) con datos conservados, reconexión con snapshot y selección conservada, y diseño a 375 px sin scroll horizontal. Una primera captura del mapa salió gris; se confirmó por JavaScript que las teselas habían terminado de cargar. |
+| 33 | Corrección tras la verificación | Durante la desconexión el indicador seguía mostrando "Datos: al día". Se cambió a "Datos: último snapshot recibido" y se volvió a verificar en el navegador. También se ajustaron el formato del heartbeat (sin espacios, como los demás eventos) y el zoom al seleccionar un vehículo. |

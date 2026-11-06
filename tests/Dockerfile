@@ -16,6 +16,7 @@ RUN pip install --no-cache-dir \
 COPY pytest.ini .
 COPY contracts ./contracts
 COPY services ./services
+COPY scripts ./scripts
 COPY tests ./tests
 
 ENTRYPOINT ["pytest"]

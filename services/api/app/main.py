@@ -1,114 +1,58 @@
-"""API de ingesta: valida el evento y responde solo después del ack de Kafka."""
+"""Aplicación FastAPI: ingesta (Kafka) y consulta de vehículos (TimescaleDB + SSE)."""
 
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import os
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
 
-from aiokafka import AIOKafkaProducer
-from aiokafka.errors import KafkaError
-from fastapi import Depends, FastAPI, HTTPException, Request, status
-from pydantic import BaseModel
+from fastapi import FastAPI
 
-from fleet_contracts import TOPIC, PositionEvent, check_not_in_future
+from . import ingest
+from .db import create_pool
+from .settings import settings
+from .vehicles import routes as vehicle_routes
+from .vehicles.repository import VehicleRepository
+from .vehicles.snapshots import SnapshotHub
 
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
 log = logging.getLogger("api")
 
-KAFKA_BOOTSTRAP = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9094")
-SEND_TIMEOUT_S = float(os.getenv("KAFKA_SEND_TIMEOUT_S", "5"))
-STARTUP_RETRIES = int(os.getenv("KAFKA_STARTUP_RETRIES", "30"))
-
-
-async def _start_producer() -> AIOKafkaProducer:
-    for attempt in range(1, STARTUP_RETRIES + 1):
-        producer = AIOKafkaProducer(
-            bootstrap_servers=KAFKA_BOOTSTRAP,
-            acks="all",
-            enable_idempotence=True,
-            linger_ms=5,
-            request_timeout_ms=int(SEND_TIMEOUT_S * 1000),
-        )
-        try:
-            await producer.start()
-            log.info("Productor Kafka conectado a %s", KAFKA_BOOTSTRAP)
-            return producer
-        except KafkaError as exc:
-            await producer.stop()
-            log.warning("Kafka no disponible (intento %d): %s", attempt, exc)
-            await asyncio.sleep(2)
-    raise RuntimeError("No se pudo conectar a Kafka")
+# Reexportado para las pruebas existentes.
+get_producer = ingest.get_producer
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    app.state.producer = await _start_producer()
+    app.state.producer = await ingest.start_producer()
+
+    pool = create_pool(settings)
+    # wait=False: la API arranca aunque la BD aún no responda; el hub
+    # informará `degraded` hasta que la conexión esté disponible.
+    await pool.open(wait=False)
+    repo = VehicleRepository(pool, settings.vehicles_max)
+    hub = SnapshotHub(repo.current_positions, settings.vehicles_poll_interval_s,
+                      max_subscribers=settings.sse_max_clients)
+    app.state.vehicle_repository = repo
+    app.state.snapshot_hub = hub
+    hub_task = asyncio.create_task(hub.run(), name="snapshot-hub")
     try:
         yield
     finally:
+        hub_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await hub_task
+        await pool.close()
         await app.state.producer.stop()
 
 
-app = FastAPI(title="Fleet ingestion API", version="1.0.0", lifespan=lifespan)
-
-
-class Accepted(BaseModel):
-    event_id: str
-    status: str = "accepted"
-
-
-def get_producer(request: Request) -> AIOKafkaProducer:
-    """Dependencia separada para poder sustituir el productor en pruebas."""
-    return request.app.state.producer
+app = FastAPI(title="Fleet API", version="1.1.0", lifespan=lifespan)
+app.include_router(ingest.router)
+app.include_router(vehicle_routes.router)
 
 
 @app.get("/health")
 async def health() -> dict:
     return {"status": "ok"}
-
-
-@app.post(
-    "/v1/positions",
-    status_code=status.HTTP_202_ACCEPTED,
-    response_model=Accepted,
-    responses={503: {"description": "Kafka no confirmó el mensaje"}},
-)
-async def ingest_position(
-    event: PositionEvent,
-    producer: AIOKafkaProducer = Depends(get_producer),
-) -> Accepted:
-    try:
-        check_not_in_future(event)
-    except ValueError as exc:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc)) from exc
-
-    headers = [
-        ("received_at", datetime.now(timezone.utc).isoformat().encode()),
-        ("producer", b"api"),
-    ]
-    try:
-        # send_and_wait devuelve cuando el broker confirma con acks=all.
-        metadata = await asyncio.wait_for(
-            producer.send_and_wait(
-                TOPIC,
-                value=event.canonical_json(),
-                key=event.vehicle_id.encode("utf-8"),
-                headers=headers,
-            ),
-            timeout=SEND_TIMEOUT_S,
-        )
-    except (KafkaError, asyncio.TimeoutError) as exc:
-        log.error("Kafka no confirmó event_id=%s: %r", event.event_id, exc)
-        raise HTTPException(
-            status.HTTP_503_SERVICE_UNAVAILABLE,
-            "Kafka no confirmó el mensaje; reintente con el mismo event_id",
-        ) from exc
-
-    log.info(
-        "event_id=%s aceptado partition=%d offset=%d",
-        event.event_id, metadata.partition, metadata.offset,
-    )
-    return Accepted(event_id=str(event.event_id))
