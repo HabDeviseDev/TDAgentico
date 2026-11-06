@@ -31,6 +31,15 @@ RETURNING event_id
 
 EXISTING_HASH_SQL = "SELECT payload_hash FROM ingested_events WHERE event_id = %s"
 
+CONFLICT_SQL = """
+INSERT INTO event_id_conflicts
+    (event_id, original_hash, received_hash,
+     kafka_topic, kafka_partition, kafka_offset)
+VALUES (%(event_id)s, %(original_hash)s, %(payload_hash)s,
+        %(topic)s, %(partition)s, %(offset)s)
+ON CONFLICT (kafka_topic, kafka_partition, kafka_offset) DO NOTHING
+"""
+
 HISTORY_SQL = """
 INSERT INTO position_history
     (event_id, vehicle_id, captured_at, lat, lon, speed_kmh)
@@ -97,12 +106,18 @@ def persist_batch(conn: psycopg.Connection, batch: list[InboundEvent]) -> BatchS
                     stats.duplicates += 1
                     cur.execute(EXISTING_HASH_SQL, (ev.event_id,))
                     row = cur.fetchone()
-                    if row is not None and bytes(row[0]) != params["payload_hash"]:
-                        stats.id_conflicts += 1
+                    original_hash = bytes(row[0]) if row is not None else None
+                    if original_hash is not None and original_hash != params["payload_hash"]:
+                        # Se conserva el original; el conflicto queda registrado
+                        # en la misma transacción. Reprocesar este mensaje
+                        # (mismo tópico/partición/offset) no lo duplica.
+                        cur.execute(CONFLICT_SQL, {**params, "original_hash": original_hash})
+                        if cur.rowcount:
+                            stats.id_conflicts += 1
                         log.warning(
-                            "event_id=%s repetido con payload distinto; "
-                            "se conserva el primero (partition=%d offset=%d)",
-                            ev.event_id, item.partition, item.offset,
+                            "event_id=%s repetido con payload distinto; se conserva "
+                            "el original (partition=%d offset=%d registrado=%s)",
+                            ev.event_id, item.partition, item.offset, bool(cur.rowcount),
                         )
                     continue
 

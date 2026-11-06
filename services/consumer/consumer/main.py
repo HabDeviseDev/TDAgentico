@@ -17,6 +17,7 @@ import os
 import signal
 import sys
 import time
+from typing import Callable
 
 import psycopg
 from confluent_kafka import Consumer, KafkaError, KafkaException, Message, Producer, TopicPartition
@@ -118,6 +119,63 @@ def _commit_offsets(consumer: Consumer, messages: list[Message]) -> None:
         log.warning("No se pudo confirmar offsets %s: %s", offsets, exc)
 
 
+def _crash_after_db_commit() -> None:
+    log.error("FAIL_AFTER_DB_COMMIT=1: saliendo antes de confirmar offsets")
+    logging.shutdown()
+    os._exit(FAIL_EXIT_CODE)
+
+
+def process_batch(
+    messages: list[Message],
+    *,
+    consumer: Consumer,
+    dlq_producer: Producer,
+    conn: psycopg.Connection,
+    persist: Callable = None,
+    after_db_commit: Callable[[], None] | None = None,
+) -> psycopg.Connection:
+    """Procesa un lote de consume(). Devuelve la conexión vigente.
+
+    Orden: DLQ confirmada → COMMIT en BD → commit de offsets. Si la DLQ o la
+    BD fallan, la excepción sube y no se confirma ningún offset del lote.
+    """
+    persist = persist or _persist_with_retry
+    processable: list[Message] = []
+    batch: list[InboundEvent] = []
+    for msg in messages:
+        err = msg.error()
+        if err is not None:
+            if err.code() != KafkaError._PARTITION_EOF:
+                log.error("Error de Kafka: %s", err)
+            continue
+        processable.append(msg)
+        try:
+            if msg.value() is None:
+                raise ValueError("mensaje sin valor")
+            event = PositionEvent.model_validate_json(msg.value())
+        except (ValidationError, ValueError) as exc:
+            _send_to_dlq(dlq_producer, msg, str(exc))
+            continue
+        batch.append(InboundEvent(event, msg.topic(), msg.partition(), msg.offset()))
+
+    if not processable:
+        return conn
+
+    if batch:
+        conn, stats = persist(conn, batch)
+        log.info(
+            "Lote confirmado en BD: nuevos=%d duplicados=%d conflictos_id=%d "
+            "posicion_actual_actualizada=%d",
+            stats.inserted, stats.duplicates, stats.id_conflicts, stats.current_updated,
+        )
+
+    if after_db_commit is not None:
+        after_db_commit()
+
+    _commit_offsets(consumer, processable)
+    return conn
+
+
 def run() -> int:
     signal.signal(signal.SIGTERM, _stop)
     signal.signal(signal.SIGINT, _stop)
@@ -146,42 +204,13 @@ def run() -> int:
             messages = consumer.consume(num_messages=BATCH_SIZE, timeout=POLL_TIMEOUT_S)
             if not messages:
                 continue
-
-            processable: list[Message] = []
-            batch: list[InboundEvent] = []
-            for msg in messages:
-                err = msg.error()
-                if err is not None:
-                    if err.code() != KafkaError._PARTITION_EOF:
-                        log.error("Error de Kafka: %s", err)
-                    continue
-                processable.append(msg)
-                try:
-                    if msg.value() is None:
-                        raise ValueError("mensaje sin valor")
-                    event = PositionEvent.model_validate_json(msg.value())
-                except (ValidationError, ValueError) as exc:
-                    _send_to_dlq(dlq_producer, msg, str(exc))
-                    continue
-                batch.append(InboundEvent(event, msg.topic(), msg.partition(), msg.offset()))
-
-            if not processable:
-                continue
-
-            if batch:
-                conn, stats = _persist_with_retry(conn, batch)
-                log.info(
-                    "Lote confirmado en BD: nuevos=%d duplicados=%d conflictos_id=%d "
-                    "posicion_actual_actualizada=%d",
-                    stats.inserted, stats.duplicates, stats.id_conflicts, stats.current_updated,
-                )
-
-            if FAIL_AFTER_DB_COMMIT:
-                log.error("FAIL_AFTER_DB_COMMIT=1: saliendo antes de confirmar offsets")
-                logging.shutdown()
-                os._exit(FAIL_EXIT_CODE)
-
-            _commit_offsets(consumer, processable)
+            conn = process_batch(
+                messages,
+                consumer=consumer,
+                dlq_producer=dlq_producer,
+                conn=conn,
+                after_db_commit=_crash_after_db_commit if FAIL_AFTER_DB_COMMIT else None,
+            )
     finally:
         log.info("Cerrando consumidor")
         consumer.close()

@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 
 from aiokafka import AIOKafkaProducer
 from aiokafka.errors import KafkaError
-from fastapi import FastAPI, HTTPException, Request, status
+from fastapi import Depends, FastAPI, HTTPException, Request, status
 from pydantic import BaseModel
 
 from fleet_contracts import TOPIC, PositionEvent, check_not_in_future
@@ -60,6 +60,11 @@ class Accepted(BaseModel):
     status: str = "accepted"
 
 
+def get_producer(request: Request) -> AIOKafkaProducer:
+    """Dependencia separada para poder sustituir el productor en pruebas."""
+    return request.app.state.producer
+
+
 @app.get("/health")
 async def health() -> dict:
     return {"status": "ok"}
@@ -71,13 +76,15 @@ async def health() -> dict:
     response_model=Accepted,
     responses={503: {"description": "Kafka no confirmó el mensaje"}},
 )
-async def ingest_position(event: PositionEvent, request: Request) -> Accepted:
+async def ingest_position(
+    event: PositionEvent,
+    producer: AIOKafkaProducer = Depends(get_producer),
+) -> Accepted:
     try:
         check_not_in_future(event)
     except ValueError as exc:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc)) from exc
 
-    producer: AIOKafkaProducer = request.app.state.producer
     headers = [
         ("received_at", datetime.now(timezone.utc).isoformat().encode()),
         ("producer", b"api"),

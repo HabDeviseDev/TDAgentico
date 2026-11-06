@@ -7,6 +7,9 @@ services:
     ports:
       - "9094:9094"   # acceso desde el host (pruebas)
     environment:
+      # ID fijo del clúster KRaft. El volumen queda formateado con este ID:
+      # si se cambia, Kafka no arranca con el volumen existente.
+      CLUSTER_ID: RiVZy4ZtS2iQx_GDl38DwQ
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
       KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:9094
@@ -15,16 +18,25 @@ services:
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      # Mensajes, offsets (__consumer_offsets) y metadatos KRaft
+      # (metadata.log.dir toma por defecto el primer log.dirs).
+      # La imagen trae /tmp/kraft-combined-logs, que se pierde al recrear.
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+    volumes:
+      # /var/lib/kafka/data existe en la imagen con dueño appuser (uid 1000),
+      # así el volumen nombrado hereda permisos de escritura.
+      - kafka-data:/var/lib/kafka/data
     healthcheck:
       test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 > /dev/null 2>&1"]
       interval: 5s
       timeout: 10s
       retries: 20
+      start_period: 60s
 
   kafka-init:
     image: apache/kafka:3.8.1
@@ -52,17 +64,33 @@ services:
       TIMESCALEDB_TELEMETRY: "off"
     volumes:
       - tsdb-data:/var/lib/postgresql/data
-      - ./db/migrations/001_init.sql:/docker-entrypoint-initdb.d/100_001_init.sql:ro
     healthcheck:
       # -h 127.0.0.1: durante la inicialización Postgres solo escucha por socket,
-      # así el healthcheck no pasa antes de aplicar las migraciones.
+      # así el healthcheck no pasa antes de terminar initdb.
       test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U fleet -d fleet"]
       interval: 3s
       timeout: 5s
       retries: 30
-      # La primera inicialización (initdb + extensiones + migración) puede
-      # tardar varios minutos en Docker Desktop para Windows.
+      # La primera inicialización puede tardar varios minutos en
+      # Docker Desktop para Windows.
       start_period: 300s
+
+  # Aplica db/migrations/*.sql en orden y registra cada versión en
+  # schema_migrations. Funciona con un volumen nuevo y con uno existente.
+  migrate:
+    image: timescale/timescaledb:2.17.2-pg16
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+    environment:
+      PGHOST: timescaledb
+      PGUSER: fleet
+      PGPASSWORD: fleet
+      PGDATABASE: fleet
+    volumes:
+      - ./db:/db:ro
+    entrypoint: ["sh", "/db/migrate.sh"]
+    restart: "no"
 
   api:
     build:
@@ -96,16 +124,16 @@ services:
     depends_on:
       kafka-init:
         condition: service_completed_successfully
-      timescaledb:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     restart: unless-stopped
 
-  # Pruebas de aceptación: docker compose --profile test run --rm tests
+  # Pruebas: docker compose --profile test run --rm tests
   tests:
     profiles: ["test"]
     build:
       context: .
-      dockerfile: tests/acceptance/Dockerfile
+      dockerfile: tests/Dockerfile
     environment:
       API_URL: http://api:8000
       DATABASE_URL: postgresql://fleet:fleet@timescaledb:5432/fleet
@@ -119,3 +147,4 @@ services:
 
 volumes:
   tsdb-data:
+  kafka-data:
