@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState, type ReactNode } from "react";
 import type { Vehicle } from "./api/types";
 import type { PortalConfig } from "./config";
 import { AlertsPanel } from "./components/AlertsPanel";
+import { ChatPanel } from "./components/ChatPanel";
 import { MapView } from "./components/MapView";
 import { StatusBar } from "./components/StatusBar";
 import { VehicleDetail } from "./components/VehicleDetail";
@@ -18,6 +19,7 @@ export function App({ config }: { config: PortalConfig }) {
   const [query, setQuery] = useState("");
   const now = useNow(5_000);
   const zones = useZones();
+  const [chatOpen, setChatOpen] = useState(false);
 
   const isVehicleStale = useCallback(
     (v: Vehicle) => isStale(v.captured_at, now, config.staleAfterSeconds),
@@ -47,6 +49,15 @@ export function App({ config }: { config: PortalConfig }) {
   const alertsOutdated =
     state.alerts !== null && (state.alertsState === "degraded" || state.connection === "lost");
   const hasDemoZones = zones.zones.some((z) => z.is_demo);
+
+  // Desde el chat: seleccionar y, en pantallas angostas, cerrar el panel para ver el mapa.
+  const selectFromChat = useCallback(
+    (vehicleId: string) => {
+      select(vehicleId);
+      if (window.matchMedia("(max-width: 900px)").matches) setChatOpen(false);
+    },
+    [select],
+  );
 
   const content = (() => {
     if (!state.hasSnapshot) {
@@ -92,6 +103,14 @@ export function App({ config }: { config: PortalConfig }) {
           alertCount={state.alerts?.alert_count ?? null}
           alertsOutdated={alertsOutdated}
         />
+        <button
+          type="button"
+          className="primary-button chat-toggle"
+          aria-expanded={chatOpen}
+          onClick={() => setChatOpen((o) => !o)}
+        >
+          {chatOpen ? "Cerrar asistente" : "Asistente"}
+        </button>
       </header>
 
       {state.hasSnapshot && state.connection === "lost" && (
@@ -163,6 +182,12 @@ export function App({ config }: { config: PortalConfig }) {
           />
         </aside>
       </main>
+      <ChatPanel
+        open={chatOpen}
+        onClose={() => setChatOpen(false)}
+        selectedId={state.selectedId}
+        onSelectVehicle={selectFromChat}
+      />
     </div>
   );
 }

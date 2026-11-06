@@ -18,11 +18,14 @@ from sse_client import SSEClient
 READ_TIMEOUT_S = float(os.getenv("DB_READ_TIMEOUT_S", "3"))
 POLL_INTERVAL_S = float(os.getenv("VEHICLES_POLL_INTERVAL_S", "1"))
 
+# Solo la consulta de posiciones actuales (hub de snapshots y GET /v1/vehicles).
+# La evaluación de alertas también lee vehicle_current_position y puede quedar
+# bloqueada a la vez; no se cuenta aquí.
 BLOCKED_API_READS_SQL = """
 SELECT count(*) FROM pg_stat_activity
 WHERE application_name = 'fleet-api'
   AND wait_event_type = 'Lock'
-  AND query ILIKE '%%FROM vehicle_current_position%%'
+  AND query ILIKE '%%speed_kmh, updated_at%%FROM vehicle_current_position%%'
 """
 
 

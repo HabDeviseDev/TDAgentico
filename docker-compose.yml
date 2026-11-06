@@ -148,7 +148,46 @@ services:
         condition: service_completed_successfully
     restart: unless-stopped
 
-  # Portal React servido por nginx, con proxy de /v1 (REST y SSE) a la API.
+  # Agente operativo (LangChain + herramientas HTTP de solo lectura hacia la API).
+  # Arranca aunque falte la credencial: informa "requiere configuración".
+  # Credenciales y modelo: archivo .env en la raíz (ver .env.example).
+  agent:
+    build:
+      context: services/agent
+    ports:
+      - "${AGENT_PORT:-8100}:8100"
+    environment:
+      FLEET_API_URL: http://api:8000
+      AGENT_PROVIDER: ${AGENT_PROVIDER:-anthropic}
+      AGENT_MODEL: ${AGENT_MODEL:-claude-opus-5-5}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      AGENT_EFFORT: ${AGENT_EFFORT:-low}
+      AGENT_REFUSAL_FALLBACK: ${AGENT_REFUSAL_FALLBACK:-true}
+      AGENT_MODEL_TIMEOUT_S: ${AGENT_MODEL_TIMEOUT_S:-30}
+      AGENT_REQUEST_TIMEOUT_S: ${AGENT_REQUEST_TIMEOUT_S:-60}
+      AGENT_MAX_CONCURRENT_CHATS: ${AGENT_MAX_CONCURRENT_CHATS:-4}
+      AGENT_MAX_STEPS: ${AGENT_MAX_STEPS:-5}
+      AGENT_MAX_TOOL_CALLS: ${AGENT_MAX_TOOL_CALLS:-6}
+      AGENT_MAX_OUTPUT_TOKENS: ${AGENT_MAX_OUTPUT_TOKENS:-4096}
+      AGENT_MAX_QUESTION_CHARS: ${AGENT_MAX_QUESTION_CHARS:-500}
+      AGENT_MAX_TOOL_ITEMS: ${AGENT_MAX_TOOL_ITEMS:-25}
+      FLEET_CONNECT_TIMEOUT_S: ${FLEET_CONNECT_TIMEOUT_S:-2}
+      FLEET_READ_TIMEOUT_S: ${FLEET_READ_TIMEOUT_S:-6}
+      FLEET_RETRIES: ${FLEET_RETRIES:-2}
+      CB_FAILURE_THRESHOLD: ${CB_FAILURE_THRESHOLD:-3}
+      CB_RECOVERY_S: ${CB_RECOVERY_S:-30}
+      CB_HALF_OPEN_MAX_CALLS: ${CB_HALF_OPEN_MAX_CALLS:-1}
+      # Mismo umbral de "desactualizado" que el portal.
+      STALE_AFTER_SECONDS: ${PORTAL_STALE_AFTER_SECONDS:-120}
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8100/health')\""]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  # Portal React servido por nginx, con proxy de /v1 (REST y SSE) a la API
+  # y de /v1/chat al agente.
   portal:
     build:
       context: services/portal
@@ -157,9 +196,12 @@ services:
       - "${PORTAL_PORT:-8088}:80"
     environment:
       API_UPSTREAM: api:8000
+      AGENT_UPSTREAM: agent:8100
       PORTAL_STALE_AFTER_SECONDS: ${PORTAL_STALE_AFTER_SECONDS:-120}
       PORTAL_CONNECTION_TIMEOUT_SECONDS: "45"
       PORTAL_SSE_READ_TIMEOUT: 120s
+      # Mayor que AGENT_REQUEST_TIMEOUT_S para que el agente responda primero.
+      PORTAL_CHAT_READ_TIMEOUT: 90s
     depends_on:
       api:
         condition: service_healthy
@@ -207,11 +249,16 @@ services:
       DB_READ_TIMEOUT_S: ${DB_READ_TIMEOUT_S:-3}
       VEHICLES_POLL_INTERVAL_S: ${VEHICLES_POLL_INTERVAL_S:-1}
       ALERTS_EVAL_INTERVAL_S: ${ALERTS_EVAL_INTERVAL_S:-5}
+      AGENT_URL: http://agent:8100
+      # Prueba opcional con el proveedor real: AGENT_REAL_PROVIDER_TEST=1.
+      AGENT_REAL_PROVIDER_TEST: ${AGENT_REAL_PROVIDER_TEST:-0}
     depends_on:
       api:
         condition: service_healthy
       consumer:
         condition: service_started
+      agent:
+        condition: service_healthy
       portal:
         condition: service_started
 

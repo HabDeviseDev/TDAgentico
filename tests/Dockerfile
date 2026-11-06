@@ -7,10 +7,12 @@ WORKDIR /repo
 
 COPY services/api/requirements.txt services/api/requirements.txt
 COPY services/consumer/requirements.txt services/consumer/requirements.txt
+COPY services/agent/requirements.txt services/agent/requirements.txt
 COPY tests/acceptance/requirements.txt tests/acceptance/requirements.txt
 RUN pip install --no-cache-dir \
     -r services/api/requirements.txt \
     -r services/consumer/requirements.txt \
+    -r services/agent/requirements.txt \
     -r tests/acceptance/requirements.txt
 
 COPY pytest.ini .

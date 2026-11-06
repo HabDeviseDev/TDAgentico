@@ -30,6 +30,20 @@ server {
         proxy_send_timeout ${PORTAL_SSE_READ_TIMEOUT};
     }
 
+    # Chat del agente operativo (servicio aparte). El nombre se resuelve en
+    # cada petición con el DNS de Docker: el portal arranca aunque el agente
+    # no esté levantado (el chat responde 502 y el portal lo muestra).
+    location /v1/chat {
+        resolver 127.0.0.11 valid=10s ipv6=off;
+        set $agent_upstream http://${AGENT_UPSTREAM};
+        proxy_pass $agent_upstream;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        client_max_body_size 16k;
+        proxy_read_timeout ${PORTAL_CHAT_READ_TIMEOUT};
+    }
+
     # REST (consulta e ingesta) desde el mismo origen del portal.
     location /v1/ {
         proxy_pass http://${API_UPSTREAM};
