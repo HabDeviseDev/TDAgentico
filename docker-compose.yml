@@ -103,6 +103,8 @@ services:
       KAFKA_SEND_TIMEOUT_S: "5"
       DATABASE_URL: postgresql://fleet:fleet@timescaledb:5432/fleet
       DB_POOL_MAX: "5"
+      # Límite de una lectura de posiciones (conexión + consulta).
+      DB_READ_TIMEOUT_S: ${DB_READ_TIMEOUT_S:-3}
       # Lectura compartida de vehicle_current_position para el SSE.
       VEHICLES_POLL_INTERVAL_S: ${VEHICLES_POLL_INTERVAL_S:-1}
       SSE_HEARTBEAT_S: ${SSE_HEARTBEAT_S:-15}
@@ -179,6 +181,8 @@ services:
       DATABASE_URL: postgresql://fleet:fleet@timescaledb:5432/fleet
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KAFKA_GROUP_ID: fleet-ingestion
+      DB_READ_TIMEOUT_S: ${DB_READ_TIMEOUT_S:-3}
+      VEHICLES_POLL_INTERVAL_S: ${VEHICLES_POLL_INTERVAL_S:-1}
     depends_on:
       api:
         condition: service_healthy

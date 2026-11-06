@@ -17,6 +17,9 @@ class Settings:
     db_pool_max: int = int(os.getenv("DB_POOL_MAX", "5"))
     # Espera máxima por una conexión del pool antes de considerar la BD caída.
     db_pool_timeout_s: float = float(os.getenv("DB_POOL_TIMEOUT_S", "3"))
+    # Límite total de una lectura de posiciones actuales: adquirir la conexión
+    # + ejecutar la consulta. Aplica a GET /v1/vehicles y al hub SSE.
+    db_read_timeout_s: float = float(os.getenv("DB_READ_TIMEOUT_S", "3"))
 
     # Cada cuánto la instancia lee vehicle_current_position para el SSE.
     vehicles_poll_interval_s: float = float(os.getenv("VEHICLES_POLL_INTERVAL_S", "1"))

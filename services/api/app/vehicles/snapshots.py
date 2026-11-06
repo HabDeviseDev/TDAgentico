@@ -117,7 +117,10 @@ class SnapshotHub:
                 log.error("Fallo al leer posiciones actuales: %r", exc)
             else:
                 log.debug("La BD sigue sin responder: %r", exc)
-            self._set_status(healthy=False, detail="No se pudo leer la base de datos")
+            # Se conserva el último snapshot; el siguiente ciclo reintenta.
+            detail = ("La base de datos no respondió a tiempo" if isinstance(exc, TimeoutError)
+                      else "No se pudo leer la base de datos")
+            self._set_status(healthy=False, detail=detail)
             return
 
         recovered = self._healthy is False

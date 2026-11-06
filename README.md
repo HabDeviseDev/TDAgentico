@@ -126,6 +126,7 @@ Todas las fechas del contrato están en UTC con sufijo `Z`. El portal las muestr
 | `SSE_MAX_CLIENTS` | api | `500` | Conexiones SSE por instancia (luego responde `503`) |
 | `VEHICLES_MAX` | api | `10000` | Tope de filas por lectura |
 | `DB_POOL_MAX` | api | `5` | Conexiones máximas del pool |
+| `DB_READ_TIMEOUT_S` | api | `3` | Límite total de una lectura de posiciones (obtener la conexión + ejecutar la consulta), en `GET /v1/vehicles` y en el hub SSE |
 | `PORTAL_STALE_AFTER_SECONDS` | portal | `120` | Antigüedad de `captured_at` a partir de la cual una posición se marca como desactualizada |
 | `PORTAL_PORT` | portal | `8088` | Puerto del portal en el host |
 
@@ -136,6 +137,33 @@ VEHICLES_POLL_INTERVAL_S=2 PORTAL_STALE_AFTER_SECONDS=60 docker compose up -d ap
 ```
 
 El umbral de antigüedad llega al navegador por `/config.json`, que nginx genera al arrancar con las variables de entorno.
+
+### Timeout de lectura
+
+Cuando una lectura supera `DB_READ_TIMEOUT_S` (BD lenta, tabla bloqueada, pool agotado):
+
+- `GET /v1/vehicles` responde `503` con `"La base de datos no respondió a tiempo"`.
+- El hub envía `status: degraded` con ese mismo detalle y conserva el último snapshot. Los clientes que conecten mientras tanto reciben el estado degradado y ese snapshot.
+- La consulta pendiente se cancela: se pide al servidor que la cancele (`cancel_safe`), se cierra la conexión y el pool la descarta y la repone.
+- El siguiente ciclo del hub vuelve a intentar la lectura. Al lograrlo envía `status: ok` y un snapshot completo.
+- Como red de seguridad, las conexiones de la API usan un `statement_timeout` de `DB_READ_TIMEOUT_S + 2` segundos en el servidor y se identifican como `application_name = fleet-api`.
+
+Cada ciclo del hub dura como máximo `DB_READ_TIMEOUT_S` más `VEHICLES_POLL_INTERVAL_S`. Con los valores por defecto, los clientes ven `degraded` unos 3 a 4 s después de que la BD deja de responder.
+
+Para comprobarlo a mano con una lectura que queda esperando indefinidamente, bloquea la tabla en una sesión de `psql` y mantenla abierta:
+
+```bash
+docker compose exec timescaledb psql -U fleet -d fleet
+```
+
+Dentro de `psql`:
+
+```sql
+BEGIN;
+LOCK TABLE vehicle_current_position IN ACCESS EXCLUSIVE MODE;
+```
+
+Mientras tanto, `GET /v1/vehicles` responde `503` a los 3 s y el portal muestra "BD sin respuesta". Al ejecutar `ROLLBACK;` se recupera en el siguiente ciclo.
 
 ### Costo de la lectura periódica y cómo escalar
 
@@ -240,6 +268,8 @@ docker compose --profile test run --rm --no-deps tests tests/unit -v
 | `tests/acceptance/test_crash_recovery.py` | Stack real + CLI Docker | AT-4 caída entre COMMIT y offset (se omite dentro del contenedor) |
 | `tests/unit/test_snapshot_hub.py` | Controlada (BD falsa) | Snapshot inicial, una lectura compartida, solo emite si cambia, BD caída → `degraded` y recuperación, cliente lento con memoria acotada, heartbeat, liberación al desconectar, `GET /v1/vehicles` 200/503 |
 | `tests/unit/test_simulator.py` | Controlada (servidor HTTP local) | Reintento con el mismo `event_id`, IDs estables, `event_id` nuevos, UTC, recorridos reproducibles |
+| `tests/unit/test_read_timeout.py` | Controlada (pool falso que se cuelga) | Consulta y adquisición colgadas superan el timeout; la conexión se cancela, se devuelve y se descarta; el hub degrada, conserva el snapshot y se recupera; `GET` responde `503` |
+| `tests/acceptance/test_read_timeout_lock.py` | Stack real | `LOCK TABLE` exclusivo: `GET` responde `503` al vencer el timeout, el SSE pasa a `degraded`, las lecturas canceladas no se acumulan en `pg_stat_activity` y al liberar llegan `ok` y un snapshot |
 | `tests/acceptance/test_vehicles_realtime.py` | Stack real (+ portal) | Última posición por REST, snapshot inicial, actualización tras persistir, evento atrasado, snapshot completo tras reconectar, SSE sin buffering a través de nginx |
 
 Pruebas del portal (tipos, build y Vitest):

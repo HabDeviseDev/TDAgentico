@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 
 from ..settings import settings
-from .repository import VehicleRepository
+from .repository import ReadTimeout, VehicleRepository
 from .schemas import VehiclesResponse, utcnow
 from .snapshots import SnapshotHub, TooManySubscribers
 from .sse import client_stream
@@ -30,6 +30,10 @@ def get_hub(request: Request) -> SnapshotHub:
 async def list_vehicles(repo: VehicleRepository = Depends(get_repository)) -> VehiclesResponse:
     try:
         vehicles = await repo.current_positions()
+    except ReadTimeout as exc:
+        log.error("GET /v1/vehicles: %s", exc)
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE,
+                            "La base de datos no respondió a tiempo") from exc
     except Exception as exc:  # noqa: BLE001
         log.error("GET /v1/vehicles falló: %r", exc)
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE,

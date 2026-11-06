@@ -32,7 +32,7 @@ async def lifespan(app: FastAPI):
     # wait=False: la API arranca aunque la BD aún no responda; el hub
     # informará `degraded` hasta que la conexión esté disponible.
     await pool.open(wait=False)
-    repo = VehicleRepository(pool, settings.vehicles_max)
+    repo = VehicleRepository(pool, settings.vehicles_max, settings.db_read_timeout_s)
     hub = SnapshotHub(repo.current_positions, settings.vehicles_poll_interval_s,
                       max_subscribers=settings.sse_max_clients)
     app.state.vehicle_repository = repo
