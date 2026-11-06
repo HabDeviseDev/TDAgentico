@@ -223,11 +223,11 @@ def test_reintenta_errores_transitorios_y_cada_intento_pasa_por_el_circuito():
         api = FakeFleetApi()
         api.queue = ["error503", "timeout"]          # luego responde bien
         client = client_for(api, ManualClock(), retries=2, threshold=5)
-        body, meta = await client.get_json("/v1/zones")
+        body, meta = await client.get("/v1/zones")
         return body, meta, client.breaker
 
     body, meta, b = run(scenario())
-    assert body["count"] == 2
+    assert body.count == 2
     assert meta["attempts"] == 3
     assert b.snapshot()["consecutive_failures"] == 0   # el éxito final reinicia
 
@@ -245,7 +245,7 @@ def test_clasificacion_de_errores(mode, kind, failure, attempts):
         api.mode = mode
         client = client_for(api, ManualClock(), retries=2, threshold=10)
         with pytest.raises(FleetApiError) as exc:
-            await client.get_json("/v1/alerts")
+            await client.get("/v1/alerts")
         return exc.value, api, client.breaker
 
     err, api, b = run(scenario())
@@ -259,9 +259,9 @@ def test_rutas_fijas_y_url_de_configuracion():
     async def scenario():
         client = client_for(FakeFleetApi(), ManualClock())
         with pytest.raises(ValueError):
-            await client.get_json("http://otro-host/v1/alerts")
+            await client.get("http://otro-host/v1/alerts")
         with pytest.raises(ValueError):
-            await client.get_json("/v1/positions")
+            await client.get("/v1/positions")
 
     run(scenario())
 
@@ -274,17 +274,17 @@ def test_circuito_abierto_no_llama_a_la_api_y_no_reintenta():
         client = client_for(api, clock, retries=0, threshold=2)
         for _ in range(2):
             with pytest.raises(FleetApiError):
-                await client.get_json("/v1/zones")
+                await client.get("/v1/zones")
         before = len(api.requests)
         with pytest.raises(FleetApiError) as exc:
-            await client.get_json("/v1/zones")
+            await client.get("/v1/zones")
         assert exc.value.kind == "circuit_open"
         assert len(api.requests) == before
         # Recuperación: pasa el plazo, la API responde y el circuito se cierra.
         api.mode = "ok"
         clock.advance(30)
-        body, _ = await client.get_json("/v1/zones")
-        assert body["count"] == 2
+        body, _ = await client.get("/v1/zones")
+        assert body.count == 2
         assert client.breaker.state is BreakerState.CLOSED
 
     run(scenario())

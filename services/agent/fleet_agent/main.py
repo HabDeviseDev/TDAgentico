@@ -134,8 +134,8 @@ def create_app(cfg: Settings | None = None, *, model: BaseChatModel | None = Non
         svc: AgentService = request.app.state.service
         started = time.monotonic()
         try:
-            body, meta = await svc.client.get_json("/v1/zones")
-            payload = {"ok": True, "zones": body.get("count"), "attempts": meta["attempts"]}
+            body, meta = await svc.client.get("/v1/zones")
+            payload = {"ok": True, "zones": body.count, "attempts": meta["attempts"]}
             code = 200
         except FleetApiError as exc:
             payload = {"ok": False, "error": exc.public(),

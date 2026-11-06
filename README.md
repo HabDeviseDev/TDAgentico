@@ -463,6 +463,20 @@ El umbral de "desactualizado" de las posiciones es `PORTAL_STALE_AFTER_SECONDS`,
 
 Son tres, tipadas con Pydantic (`extra="forbid"`). Los argumentos se validan **antes** de llamar a la API: un argumento inválido produce `invalid_arguments` sin ninguna petición HTTP. Las rutas son fijas y la URL base sale de `FLEET_API_URL`; ningún argumento forma una URL.
 
+- **Identificadores exactos:** `vehicle_id` usa el mismo tipo que la ingesta (`fleet_contracts.VehicleId`: texto de 1 a 64 caracteres, sin espacios en los extremos). Se acepta cualquier identificador que la ingesta acepte, como `Camión 7` o `BOG/01`.
+  - Las herramientas comparan `vehicle_id` y `zone_id` exactamente, respetando mayúsculas y minúsculas: `BOG-001` y `bog-001` son vehículos distintos.
+  - Los identificadores se devuelven sin modificar; solo los textos libres (nombres, detalles) se limpian.
+  - `zone_id` (`text` en `critical_zones`) se acota a 128 caracteres.
+- **Contratos de respuesta** (`fleet_agent/api_contracts.py`): las respuestas de `/v1/vehicles`, `/v1/zones` y `/v1/alerts` se validan en modo estricto **dentro del intento que registra el circuit breaker**, antes de contarlo como éxito. Se comprueban:
+  - Campos obligatorios y tipos exactos: no se acepta `"4.6"` como número ni `1` como booleano.
+  - Fechas ISO-8601 con zona horaria, normalizadas a UTC.
+  - Rangos y coherencia entre conteos y listas.
+
+  Los campos adicionales se ignoran. Una respuesta fuera de contrato:
+  - Es `invalid_response` y cuenta como fallo de la dependencia, sin reintento.
+  - Deja la herramienta como `unavailable`, con la advertencia `invalid_api_response`.
+  - Da un mensaje público genérico. El log interno registra solo la ubicación y el tipo de cada error, sin valores.
+
 | Herramienta | Fuente | Argumentos | Devuelve |
 |---|---|---|---|
 | `consultar_posiciones` | `GET /v1/vehicles` | `vehicle_ids?`, `only_stale`, `limit` | Posición, velocidad (km/h), `captured_at` UTC, antigüedad (s) y si está desactualizada |
@@ -534,7 +548,7 @@ Ejemplo ilustrativo de la forma de la respuesta. El texto de `answer` no es una 
   |---|---|
   | Cobertura | `partial_evaluation`, `insufficient_evidence`, `start_unknown` |
   | Antigüedad | `stale_data` |
-  | Fallos | `tool_failed`, `circuit_open`, `request_timeout`, `model_*` |
+  | Fallos | `tool_failed`, `invalid_api_response`, `circuit_open`, `request_timeout`, `model_*` |
   | Límites | `results_truncated`, `step_limit`, `tool_call_limit`, `answer_truncated`, `evidence_truncated` |
   | Validación | `unsupported_threshold`, `invalid_tool_arguments`, `tool_rejected` |
 
@@ -559,7 +573,7 @@ Ejemplo ilustrativo de la forma de la respuesta. El texto de `answer` no es una 
   | Timeout de conexión o lectura | sí | sí |
   | Error de conexión | sí | sí |
   | HTTP 5xx | sí | solo 502, 503 y 504 |
-  | JSON inválido o respuesta demasiado grande | sí | no |
+  | JSON inválido, respuesta demasiado grande o fuera de contrato | sí | no |
   | HTTP 4xx | no: la API respondió | no |
 
   Cada intento pasa por el circuito: una consulta con 3 intentos fallidos abre el circuito con el umbral por defecto.
@@ -692,6 +706,7 @@ docker compose --profile test run --rm --no-deps tests tests/unit -v
 | `tests/acceptance/test_vehicles_realtime.py` | Stack real (+ portal) | Última posición por REST, snapshot inicial, actualización tras persistir, evento atrasado, snapshot completo tras reconectar, SSE sin buffering a través de nginx |
 | `tests/unit/test_stop_rule.py` | Dominio puro (reloj inyectado) | Más de 20 min y exactamente 20; frontera del radio; fuera de zona; salida de zona; zonas superpuestas; movimiento; velocidad igual al umbral; desplazamiento (49,99 m frente a 50+); interrupción (120 frente a 121 s); última muestra desactualizada; duplicados y empates de timestamp; eventos atrasados que retiran o crean la alerta; inicio truncado por la ventana; identificador estable; límites de vehículos y filas → evaluación parcial; regresión 19 min + 2 min futuros sin alerta y alerta al avanzar el reloj; vehículo con solo muestras futuras; muestra futura que no oculta una desactualizada |
 | `tests/unit/test_alert_hub.py` | Controlada (BD falsa y reloj) | Transacción `REPEATABLE READ` con tres consultas; timeout con consulta colgada y descarte de la conexión; resultado completo al conectar; cambios sin cambiar la posición actual (evento atrasado y antigüedad); `degraded` que conserva el resultado y recuperación; fallo sin resultado previo sin lista vacía; resultado parcial por límites; stream con ambos hubs y liberación; cliente lento acotado; `GET /v1/alerts` 200/503 y `GET /v1/zones`; el mismo `evaluated_at` en todas las consultas; muestras futuras en el hub y al avanzar el reloj |
+| `tests/unit/test_agent_contracts.py` | Dobles: API simulada y modelo guionado; cliente, circuito, contratos y herramientas reales | Respuestas con campos ausentes, tipos incorrectos, fechas inválidas, rangos y conteos incoherentes → `invalid_response` que cuenta como fallo sin reintento; respuestas válidas con enteros, campos extra y otra zona horaria; apertura del circuito por respuestas inválidas y recuperación; herramienta `unavailable` con advertencia y sin datos internos; regresión `BOG-001` / `bog-001` (cada consulta devuelve solo el vehículo pedido) y zonas con otras mayúsculas; los argumentos aceptan exactamente los identificadores de la ingesta, que conserva su semántica |
 | `tests/unit/test_agent_breaker.py` | Dobles: reloj manual, API simulada (`httpx.MockTransport`) | Estados del circuito (apertura, rechazo sin llamar, semiabierto con pruebas limitadas y concurrentes, reapertura con nuevo plazo, cierre), errores que no cuentan, cancelación que libera el cupo, resultado tardío de otra generación; reintentos, clasificación de errores y rutas fijas del cliente HTTP |
 | `tests/unit/test_agent_chat.py` | Dobles: modelo guionado (`ScriptedModel`) y API simulada; herramientas, cliente, circuito y límites reales | Selección y ejecución real de herramientas (también en paralelo); sin coincidencias; evidencia insuficiente y evaluación parcial conservadas aunque el modelo no las mencione; umbral no soportado; truncado con conteos; fallo y timeout de la API; apertura, rechazo y recuperación del circuito; argumentos inválidos; límites de pasos, llamadas y duración total; cancelación con liberación de la petición HTTP y del circuito; límite de chats simultáneos; longitud de la pregunta; respuesta truncada; error del proveedor; credenciales ausentes; datos con instrucciones maliciosas |
 | `tests/acceptance/test_agent_service.py` | Servicios reales (portal, agente, API, BD); un caso con modelo guionado; un caso opcional con el proveedor real | Chat por el mismo origen del portal, estado sin exponer la credencial, `fleet-check` con circuito cerrado, `503 not_configured` sin credencial; herramientas reales contra la API real; proveedor real solo con `AGENT_REAL_PROVIDER_TEST=1` |

@@ -49,6 +49,11 @@ def last_tool_payloads(messages: list[BaseMessage]) -> list[dict]:
     return out
 
 
+def summary_answer(messages: list[BaseMessage]) -> AIMessage:
+    """Paso final del guion: resume los estados de las herramientas recibidas."""
+    return answer(f"Estados: {[p['status'] for p in last_tool_payloads(messages)]}")
+
+
 class ScriptedModel(BaseChatModel):
     script: list[Any]
     delay_s: float = 0.0

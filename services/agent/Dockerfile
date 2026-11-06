@@ -1,11 +1,12 @@
-# Contexto de build: services/agent
+# Contexto de build: raíz del repositorio (reutiliza contracts/fleet_contracts).
 FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 WORKDIR /app
-COPY requirements.txt .
+COPY services/agent/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-COPY fleet_agent ./fleet_agent
+COPY contracts/fleet_contracts ./fleet_contracts
+COPY services/agent/fleet_agent ./fleet_agent
 
 # Un solo proceso: un circuit breaker y un límite de concurrencia por instancia.
 EXPOSE 8100

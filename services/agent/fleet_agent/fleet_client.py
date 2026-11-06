@@ -13,7 +13,7 @@ Clasificación de errores (`FleetApiError.kind`):
 | timeout           | sí                             | sí           |
 | connect           | sí (conexión rechazada, DNS…)  | sí           |
 | http_5xx          | sí                             | solo 502/503/504 |
-| invalid_response  | sí (JSON inválido o demasiado grande) | no    |
+| invalid_response  | sí (JSON inválido, demasiado grande o que no cumple el contrato) | no |
 | http_4xx          | no (la API respondió; error de la petición) | no |
 | circuit_open      | — (rechazada sin llamar)       | no           |
 """
@@ -21,18 +21,19 @@ Clasificación de errores (`FleetApiError.kind`):
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import time
 from typing import Awaitable, Callable
 
 import httpx
+from pydantic import BaseModel, ValidationError
 
+from .api_contracts import RESPONSE_CONTRACTS
 from .breaker import CircuitBreaker, CircuitOpenError
 
 log = logging.getLogger("agent.fleet")
 
-ALLOWED_PATHS = frozenset({"/v1/vehicles", "/v1/zones", "/v1/alerts"})
+ALLOWED_PATHS = frozenset(RESPONSE_CONTRACTS)
 RETRYABLE_STATUS = frozenset({502, 503, 504})
 
 
@@ -78,8 +79,9 @@ class FleetClient:
     async def aclose(self) -> None:
         await self._http.aclose()
 
-    async def get_json(self, path: str) -> tuple[dict, dict]:
-        """GET a una ruta permitida. Devuelve (cuerpo, meta) con intentos y duración."""
+    async def get(self, path: str) -> tuple[BaseModel, dict]:
+        """GET a una ruta permitida. Devuelve (respuesta validada con su
+        contrato, meta con intentos y duración)."""
         if path not in ALLOWED_PATHS:
             raise ValueError(f"ruta no permitida: {path}")
         started = time.monotonic()
@@ -103,7 +105,7 @@ class FleetClient:
                 log.info("GET %s falló (%s), reintento %d/%d", path, exc.kind, attempt, self._retries)
                 await self._sleep(self._backoff_s * attempt)
 
-    async def _once(self, path: str) -> dict:
+    async def _once(self, path: str) -> BaseModel:
         try:
             resp = await self._http.get(path)
         except httpx.TimeoutException as exc:
@@ -123,15 +125,19 @@ class FleetClient:
         if len(resp.content) > self._max_bytes:
             raise FleetApiError("invalid_response", "Respuesta de la API de flota demasiado grande",
                                 status_code=status, counts_as_failure=True, retryable=False)
+        # El contrato se valida aquí, dentro del intento: una respuesta que no lo
+        # cumple cuenta como fallo de la dependencia antes de registrar un éxito.
         try:
-            body = resp.json()
-        except (json.JSONDecodeError, UnicodeDecodeError) as exc:
-            raise FleetApiError("invalid_response", "La API de flota devolvió JSON inválido",
-                                status_code=status, counts_as_failure=True, retryable=False) from exc
-        if not isinstance(body, dict):
-            raise FleetApiError("invalid_response", "Respuesta inesperada de la API de flota",
-                                status_code=status, counts_as_failure=True, retryable=False)
-        return body
+            return RESPONSE_CONTRACTS[path].model_validate_json(resp.content)
+        except ValidationError as exc:
+            # Al log interno solo van ubicación y tipo de cada error, sin valores.
+            log.warning("GET %s: respuesta fuera de contrato (%d errores): %s", path,
+                        exc.error_count(),
+                        [(".".join(str(p) for p in e["loc"]), e["type"]) for e in exc.errors()[:10]])
+            raise FleetApiError(
+                "invalid_response",
+                "La API de flota devolvió una respuesta que no cumple el contrato esperado",
+                status_code=status, counts_as_failure=True, retryable=False) from None
 
 
 def _detail(resp: httpx.Response) -> str:

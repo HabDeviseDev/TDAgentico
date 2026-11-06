@@ -14,6 +14,8 @@ from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator
 
+from .identifiers import VehicleId
+
 TOPIC = "fleet.positions.v1"
 DLQ_TOPIC = "fleet.positions.dlq"
 SCHEMA_VERSION = 1
@@ -27,19 +29,11 @@ class PositionEvent(BaseModel):
 
     schema_version: Literal[1] = SCHEMA_VERSION
     event_id: UUID
-    vehicle_id: str = Field(min_length=1, max_length=64)
+    vehicle_id: VehicleId
     captured_at: AwareDatetime
     lat: float = Field(ge=-90, le=90)
     lon: float = Field(ge=-180, le=180)
     speed_kmh: float = Field(ge=0, le=300)
-
-    @field_validator("vehicle_id")
-    @classmethod
-    def _strip_vehicle_id(cls, value: str) -> str:
-        value = value.strip()
-        if not value:
-            raise ValueError("vehicle_id no puede estar vacío")
-        return value
 
     @field_validator("captured_at")
     @classmethod

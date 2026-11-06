@@ -153,7 +153,8 @@ services:
   # Credenciales y modelo: archivo .env en la raíz (ver .env.example).
   agent:
     build:
-      context: services/agent
+      context: .
+      dockerfile: services/agent/Dockerfile
     ports:
       - "${AGENT_PORT:-8100}:8100"
     environment:

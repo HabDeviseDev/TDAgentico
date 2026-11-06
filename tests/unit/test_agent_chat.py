@@ -75,7 +75,7 @@ def test_selecciona_y_ejecuta_la_herramienta_real():
 
 
 def test_herramientas_en_paralelo_y_posicion_de_un_vehiculo():
-    model = ScriptedModel(script=[tool_calls((POSITIONS, {"vehicle_ids": ["bog-002", "NO-EXISTE"]}),
+    model = ScriptedModel(script=[tool_calls((POSITIONS, {"vehicle_ids": ["BOG-002", "NO-EXISTE"]}),
                                              (ZONES, {"only_demo": True})), summarize])
     client, api = client_for(model)
     with client:
@@ -217,7 +217,8 @@ def test_fleet_check_muestra_el_circuito_sin_modelo():
 # -- validación y límites -----------------------------------------------------------------
 
 def test_argumentos_invalidos_no_llaman_a_la_api():
-    model = ScriptedModel(script=[tool_call(ALERTS, {"vehicle_ids": ["../etc/passwd"], "limit": 999,
+    # Inválidos según el contrato de origen: vacío tras quitar espacios y más de 64 caracteres.
+    model = ScriptedModel(script=[tool_call(ALERTS, {"vehicle_ids": ["   ", "x" * 65], "limit": 999,
                                                      "url": "http://evil"}),
                                   answer("No pude consultar.")])
     client, api = client_for(model)
@@ -295,14 +296,14 @@ def test_cancelacion_libera_la_peticion_http_y_el_circuito():
         snapshot = svc.breaker.snapshot()
         # La prueba cancelada no cuenta: el cupo queda libre y la siguiente prueba cierra.
         api.mode = "ok"
-        body, _ = await svc.client.get_json("/v1/zones")
+        body, _ = await svc.client.get("/v1/zones")
         await svc.aclose()
         return api.cancelled, snapshot, svc.breaker.snapshot(), body
 
     cancelled, during, after, body = asyncio.run(scenario())
     assert cancelled == 1                         # la petición HTTP en curso se canceló
     assert during["state"] == "half_open"
-    assert after["state"] == "closed" and body["count"] == 2
+    assert after["state"] == "closed" and body.count == 2
 
 
 def test_limite_de_chats_concurrentes():
