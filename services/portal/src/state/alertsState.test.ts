@@ -30,6 +30,7 @@ const result = (sequence: number, alerts: StopAlert[], complete = true): AlertsE
   coverage: {
     vehicles_in_window: 2, vehicles_evaluated: complete ? 2 : 1,
     vehicles_not_evaluated: complete ? 0 : 1, vehicles_without_recent_samples: 0,
+    vehicles_with_only_future_samples: 0,
   },
   zone_ids: ["DEMO-Z01"],
   alert_count: alerts.length,

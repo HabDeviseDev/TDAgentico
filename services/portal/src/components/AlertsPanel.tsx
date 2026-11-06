@@ -118,7 +118,8 @@ export function AlertsPanel({
                   {i.vehicle_id}
                 </button>{" "}
                 <span className="muted small">
-                  {reasonLabel(i.reason)} · {formatAge(ageSeconds(i.last_sample_at, now))}
+                  {reasonLabel(i.reason)}
+                  {i.last_sample_at ? ` · ${formatAge(ageSeconds(i.last_sample_at, now))}` : ""}
                 </span>
               </li>
             ))}

@@ -62,7 +62,8 @@ class InsufficientEvidenceOut(BaseModel):
     vehicle_id: str
     reason: str
     detail: str
-    last_sample_at: UtcDatetime
+    # Última muestra evaluable; null si solo hay muestras posteriores.
+    last_sample_at: UtcDatetime | None
 
 
 class Coverage(BaseModel):
@@ -72,6 +73,8 @@ class Coverage(BaseModel):
     # Vehículos con posición actual pero sin muestras dentro de la ventana:
     # no pueden tener alertas y no se listan uno por uno.
     vehicles_without_recent_samples: int
+    # Incluidos en vehicles_in_window e informados como evidencia insuficiente.
+    vehicles_with_only_future_samples: int
 
 
 class AlertsResponse(BaseModel):
@@ -104,7 +107,8 @@ class AlertsResponse(BaseModel):
                 vehicles_in_window=ev.vehicles_in_window,
                 vehicles_evaluated=ev.vehicles_evaluated,
                 vehicles_not_evaluated=ev.vehicles_not_evaluated,
-                vehicles_without_recent_samples=ev.vehicles_without_recent_samples),
+                vehicles_without_recent_samples=ev.vehicles_without_recent_samples,
+                vehicles_with_only_future_samples=ev.vehicles_with_only_future_samples),
             zone_ids=[z.zone_id for z in ev.zones],
             alert_count=len(ev.alerts),
             alerts=[AlertOut(**a.__dict__) for a in ev.alerts],

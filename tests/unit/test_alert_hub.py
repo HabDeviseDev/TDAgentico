@@ -51,6 +51,7 @@ class FakeDb:
         self.rows = rows
         self.zones = list(zones)
         self.mode = "ok"            # ok | hang | fail
+        self.params: list[dict] = []  # parámetros de cada consulta
         self.connections: list[FakeConn] = []
         self.returned: list[FakeConn] = []
 
@@ -105,21 +106,31 @@ class FakeCursor:
     async def execute(self, sql: str, params=None):
         db = self.conn.db
         self.conn.statements.append(" ".join(sql.split()))
-        if "position_history h" in sql:
+        if params is not None:
+            db.params.append(dict(params))
+        if params and "evaluated_at" in params:
+            ws, now = params["window_start"], params["evaluated_at"]
+            evaluable = [r for r in db.rows if ws <= r.captured_at <= now]
+            with_evaluable = {r.vehicle_id for r in evaluable}
+            future_first: dict[str, datetime] = {}
+            for r in db.rows:
+                if r.captured_at > now and r.vehicle_id not in with_evaluable:
+                    prev = future_first.get(r.vehicle_id)
+                    future_first[r.vehicle_id] = min(prev, r.captured_at) if prev else r.captured_at
+        if "DISTINCT ON" in sql:                       # historial
             if db.mode == "hang":
                 await asyncio.Event().wait()
             if db.mode == "fail":
                 raise ConnectionError("BD caída")
-            ws = params["window_start"]
-            rows = sorted((r for r in db.rows if r.captured_at >= ws),
-                          key=lambda r: (r.vehicle_id, r.captured_at))
-            vehicles = sorted({r.vehicle_id for r in rows})[:params["max_vehicles"]]
+            rows = sorted(evaluable, key=lambda r: (r.vehicle_id, r.captured_at))
+            vehicles = sorted(with_evaluable)[:params["max_vehicles"]]
             rows = [r for r in rows if r.vehicle_id in vehicles][:params["row_limit"]]
             self.result = [(r.vehicle_id, r.event_id, r.captured_at, r.lat, r.lon, r.speed_kmh)
                            for r in rows]
-        elif "count(DISTINCT" in sql:
-            ws = params["window_start"]
-            self.result = [(len({r.vehicle_id for r in db.rows if r.captured_at >= ws}), 0)]
+        elif "min(f.captured_at)" in sql:              # solo muestras futuras
+            self.result = sorted(future_first.items())[:params["max_vehicles"]]
+        elif "count(DISTINCT" in sql:                  # conteos
+            self.result = [(len(with_evaluable), 0, len(future_first))]
         elif "critical_zones" in sql:
             self.result = list(db.zones)
         else:
@@ -402,3 +413,46 @@ def test_get_alerts_responde_503_si_la_lectura_se_cuelga():
     assert resp.json()["detail"] == "La base de datos no respondió a tiempo"
     assert elapsed < TIMEOUT_S + 1
     assert db.discarded == db.connections
+
+
+# -- muestras posteriores al instante de evaluación ------------------------------
+
+def test_todas_las_consultas_usan_el_mismo_instante_de_evaluacion():
+    rows = stopped("V1", T0 - timedelta(minutes=19), T0 + timedelta(minutes=2))
+    rows += stopped("F", T0 + timedelta(minutes=1), T0 + timedelta(minutes=3))
+    db = FakeDb(rows)
+    repo, _ = make(db, Clock(T0))
+    ev = run(repo.evaluate())
+    # Conteos, solo-futuras e historial: los tres con el mismo límite superior.
+    assert len(db.params) == 3
+    assert {p["evaluated_at"] for p in db.params} == {ev.evaluated_at} == {T0}
+
+
+def test_regresion_muestras_futuras_en_el_hub_y_avance_del_reloj():
+    async def scenario():
+        clock = Clock(T0)
+        rows = stopped("V1", T0 - timedelta(minutes=19), T0 + timedelta(minutes=2))
+        rows += stopped("F", T0 + timedelta(minutes=1), T0 + timedelta(minutes=3))
+        _, hub = make(FakeDb(rows), clock)
+        await hub.poll_once()
+        sub = hub.subscribe()
+        now_result = dict(decode(await sub.next(timeout=0.1)))["alerts"]
+
+        clock.now = T0 + timedelta(minutes=2)       # V1 ya tiene 21 min observados
+        await hub.poll_once()
+        later = dict(decode(await sub.next(timeout=0.1)))["alerts"]
+        return now_result, later
+
+    now_result, later = run(scenario())
+    assert now_result["alert_count"] == 0
+    assert [(i["vehicle_id"], i["reason"], i["last_sample_at"])
+            for i in now_result["insufficient_evidence"]] == [("F", "only_future_samples", None)]
+    assert now_result["coverage"]["vehicles_in_window"] == 2
+    assert now_result["coverage"]["vehicles_with_only_future_samples"] == 1
+    assert now_result["complete"] is True
+
+    [alert] = later["alerts"]
+    assert alert["vehicle_id"] == "V1" and alert["observed_duration_s"] == 21 * 60
+    # F ya tiene una muestra evaluable (T0+1 min, vigente): deja de ser "solo futuras".
+    assert later["coverage"]["vehicles_with_only_future_samples"] == 0
+    assert later["insufficient_evidence"] == []

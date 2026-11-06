@@ -244,7 +244,10 @@ Está en `services/api/app/alerts/rules.py`: funciones puras y deterministas que
 - **Duración observada:** `captured_at` de la última muestra del tramo menos la de la primera. El paso del tiempo sin muestras nuevas **no** la aumenta.
 - **Alerta:** el tramo actual (el que contiene la última muestra del vehículo) dura **más** de `ALERT_AFTER_S`. Con exactamente el umbral no hay alerta.
 - **Zonas superpuestas:** cada zona se evalúa por separado. Un vehículo dentro de dos zonas puede tener una alerta por cada una.
-- **Evidencia insuficiente:** si la última muestra tiene más de `ALERT_MAX_SAMPLE_AGE_S` respecto a la hora de evaluación, no se emite alerta y el vehículo aparece en `insufficient_evidence` con el motivo `stale_last_sample`. Se aplica tanto a vehículos detenidos como en movimiento.
+- **Instante de evaluación:** solo cuentan las muestras con `captured_at <= evaluated_at`. Las posteriores, por ejemplo de un emisor con el reloj adelantado (la API acepta hasta 5 min), se conservan en el historial y participan en la primera evaluación cuya hora ya las alcanzó. Antes de eso no alargan un tramo ni ocultan una última muestra desactualizada.
+- **Evidencia insuficiente:** no se emite alerta y el vehículo aparece en `insufficient_evidence`:
+  - `stale_last_sample`: la última muestra evaluable tiene más de `ALERT_MAX_SAMPLE_AGE_S` respecto a la hora de evaluación. Se aplica tanto a vehículos detenidos como en movimiento.
+  - `only_future_samples`: el vehículo solo tiene muestras posteriores a la evaluación. `last_sample_at` es `null` y el detalle indica la primera muestra futura.
 - **Identificador de alerta:** `uuid5(vehículo | zona | event_id de la primera muestra del tramo)`. Es estable mientras dura la misma detención en la misma zona; una detención nueva tiene otro.
 - **Ventana histórica** (`ALERT_WINDOW_S`, 2 h): solo se leen muestras con `captured_at` dentro de la ventana. Si el tramo empieza en la primera muestra disponible y esa muestra está a ≤ `ALERT_MAX_GAP_S` del límite, una muestra anterior podría continuarlo. En ese caso `start_unknown: true`, la duración es un **mínimo observado** y el identificador usa un marcador fijo en lugar de la primera muestra, porque esta cambia al avanzar la ventana.
 
@@ -289,10 +292,11 @@ Evalúa en la propia petición a partir de los datos persistidos. Responde `503`
   - Con el tope de vehículos se evalúan los primeros por `vehicle_id`.
   - Con el tope de filas, el vehículo cuyo historial quedó cortado se descarta entero: no se evalúa con datos parciales.
 - `vehicles_without_recent_samples`: vehículos con posición actual pero sin muestras en la ventana. No pueden tener alertas y no se listan uno por uno.
+- `vehicles_with_only_future_samples`: vehículos que solo tienen muestras posteriores a la evaluación. Cuentan en `vehicles_in_window` y en `vehicles_evaluated`, y se listan como evidencia insuficiente.
 
 ### Vista consistente, timeout y costo
 
-- **Vista consistente:** zonas, conteos e historial se leen en **una** transacción `REPEATABLE READ, READ ONLY`, con tres consultas en total y nunca una por vehículo. Todas ven la misma instantánea aunque el consumidor siga insertando.
+- **Vista consistente:** zonas, conteos e historial se leen en **una** transacción `REPEATABLE READ, READ ONLY`, con tres consultas en total (cuatro si hay vehículos con solo muestras futuras) y nunca una por vehículo. Todas ven la misma instantánea aunque el consumidor siga insertando, y todas usan el mismo `evaluated_at` como límite superior de `captured_at`.
 - **Timeout y pool:** se reutilizan el pool y el mismo `DB_READ_TIMEOUT_S` (`app/timed_read.py`). Al vencer, la consulta se cancela en el servidor y la conexión se descarta.
 - **Costo:** O(muestras en la ventana) por evaluación. Con 2 h y una muestra cada 2 s son 3600 filas por vehículo: 1000 vehículos serían 3,6 M filas, por encima del tope por defecto (100 000), y el resultado se marcaría parcial.
   - La regla en Python solo recorre hacia atrás desde la última muestra mientras se cumplen velocidad, zona y continuidad, así que los vehículos en movimiento cuestan O(1).
@@ -474,9 +478,9 @@ docker compose --profile test run --rm --no-deps tests tests/unit -v
 | `tests/unit/test_read_timeout.py` | Controlada (pool falso que se cuelga) | Consulta y adquisición colgadas superan el timeout; la conexión se cancela, se devuelve y se descarta; el hub degrada, conserva el snapshot y se recupera; `GET` responde `503` |
 | `tests/acceptance/test_read_timeout_lock.py` | Stack real | `LOCK TABLE` exclusivo: `GET` responde `503` al vencer el timeout, el SSE pasa a `degraded`, las lecturas canceladas no se acumulan en `pg_stat_activity` y al liberar llegan `ok` y un snapshot |
 | `tests/acceptance/test_vehicles_realtime.py` | Stack real (+ portal) | Última posición por REST, snapshot inicial, actualización tras persistir, evento atrasado, snapshot completo tras reconectar, SSE sin buffering a través de nginx |
-| `tests/unit/test_stop_rule.py` | Dominio puro (reloj inyectado) | Más de 20 min y exactamente 20; frontera del radio; fuera de zona; salida de zona; zonas superpuestas; movimiento; velocidad igual al umbral; desplazamiento (49,99 m frente a 50+); interrupción (120 frente a 121 s); última muestra desactualizada; duplicados y empates de timestamp; eventos atrasados que retiran o crean la alerta; inicio truncado por la ventana; identificador estable; límites de vehículos y filas → evaluación parcial |
-| `tests/unit/test_alert_hub.py` | Controlada (BD falsa y reloj) | Transacción `REPEATABLE READ` con tres consultas; timeout con consulta colgada y descarte de la conexión; resultado completo al conectar; cambios sin cambiar la posición actual (evento atrasado y antigüedad); `degraded` que conserva el resultado y recuperación; fallo sin resultado previo sin lista vacía; resultado parcial por límites; stream con ambos hubs y liberación; cliente lento acotado; `GET /v1/alerts` 200/503 y `GET /v1/zones` |
-| `tests/acceptance/test_alerts.py` | Stack real | Zonas activas de demostración (la inactiva no aparece); alerta tras 25 min detenido en una zona de prueba, retirada por un evento atrasado en REST y SSE sin cambiar la posición actual; `LOCK TABLE position_history`: `503`, `alerts_status: degraded` y recuperación |
+| `tests/unit/test_stop_rule.py` | Dominio puro (reloj inyectado) | Más de 20 min y exactamente 20; frontera del radio; fuera de zona; salida de zona; zonas superpuestas; movimiento; velocidad igual al umbral; desplazamiento (49,99 m frente a 50+); interrupción (120 frente a 121 s); última muestra desactualizada; duplicados y empates de timestamp; eventos atrasados que retiran o crean la alerta; inicio truncado por la ventana; identificador estable; límites de vehículos y filas → evaluación parcial; regresión 19 min + 2 min futuros sin alerta y alerta al avanzar el reloj; vehículo con solo muestras futuras; muestra futura que no oculta una desactualizada |
+| `tests/unit/test_alert_hub.py` | Controlada (BD falsa y reloj) | Transacción `REPEATABLE READ` con tres consultas; timeout con consulta colgada y descarte de la conexión; resultado completo al conectar; cambios sin cambiar la posición actual (evento atrasado y antigüedad); `degraded` que conserva el resultado y recuperación; fallo sin resultado previo sin lista vacía; resultado parcial por límites; stream con ambos hubs y liberación; cliente lento acotado; `GET /v1/alerts` 200/503 y `GET /v1/zones`; el mismo `evaluated_at` en todas las consultas; muestras futuras en el hub y al avanzar el reloj |
+| `tests/acceptance/test_alerts.py` | Stack real | Zonas activas de demostración (la inactiva no aparece); alerta tras 25 min detenido en una zona de prueba, retirada por un evento atrasado en REST y SSE sin cambiar la posición actual; `LOCK TABLE position_history`: `503`, `alerts_status: degraded` y recuperación; muestras futuras (19,5 min + 1 min futuro sin alerta, solo futuras, futura con una desactualizada) y alerta cuando el reloj alcanza las futuras |
 
 Pruebas del portal (tipos, build y Vitest):
 
@@ -558,7 +562,7 @@ docker compose start kafka
 - **Evaluación por instancia:** con varias instancias de API, cada una evalúa por su cuenta (mismo resultado, costo multiplicado).
 - **Costo O(muestras en la ventana):** adecuado para la demostración. Para flotas grandes hace falta la evaluación incremental descrita arriba.
 - **Inicio desconocido:** si una detención supera la ventana, su identificador cambia una vez, porque pasa a usar el marcador fijo. Dos detenciones distintas del mismo vehículo y zona que lleguen al límite de la ventana compartirían ese identificador, aunque no pueden coexistir.
-- **Muestras con `captured_at` futuro:** la API acepta hasta 5 min de desfase. Esas muestras cuentan como vigentes (antigüedad 0) hasta que pase su hora.
+- **Muestras con `captured_at` futuro:** la API acepta hasta 5 min de desfase. La evaluación las ignora hasta que su hora llega. Un vehículo que solo tiene muestras futuras figura como evidencia insuficiente hasta entonces.
 - **Datos de demostración:** cada ejecución del script deja vehículos `DEMO-…` en la BD. Al dejar de recibir muestras pasan a evidencia insuficiente y salen de la evaluación cuando su última muestra queda fuera de la ventana de 2 h.
 
 ## Reiniciar desde cero

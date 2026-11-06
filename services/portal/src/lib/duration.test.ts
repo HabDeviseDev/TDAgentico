@@ -16,6 +16,7 @@ describe("formatDuration", () => {
 
   it("traduce los motivos conocidos y deja los demás como vienen", () => {
     expect(reasonLabel("max_rows")).toContain("filas");
+    expect(reasonLabel("only_future_samples")).toContain("posterior");
     expect(reasonLabel("otro")).toBe("otro");
   });
 });

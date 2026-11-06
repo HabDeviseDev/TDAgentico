@@ -6,7 +6,7 @@ import math
 from datetime import datetime, timedelta, timezone
 
 from app.alerts.rules import (
-    EARTH_RADIUS_M, REASON_MAX_ROWS, REASON_MAX_VEHICLES, REASON_STALE, Sample,
+    EARTH_RADIUS_M, REASON_FUTURE_ONLY, REASON_MAX_ROWS, REASON_MAX_VEHICLES, REASON_STALE, Sample,
     StopRuleParams, Zone, evaluate_fleet, evaluate_vehicle, haversine_m,
 )
 
@@ -343,3 +343,66 @@ def test_limite_de_filas_justo_en_el_borde_de_un_vehiculo():
     assert ev.complete is False
     assert [a.vehicle_id for a in ev.alerts] == ["A"]
     assert ev.vehicles_not_evaluated == 1
+
+
+# -- muestras posteriores al instante de evaluación ------------------------------
+
+def test_regresion_19_minutos_mas_2_futuros_no_alerta():
+    # 19 min hasta el presente y 2 min más con captured_at futuro: si las
+    # futuras contaran, el tramo duraría 21 min y habría alerta.
+    samples = stopped(NOW - minutes(19), NOW + minutes(2))
+    ev = evaluate_vehicle("V1", samples, [ZONE], P, NOW)
+    assert ev.alerts == ()
+    assert ev.insufficient is None          # la última muestra evaluable es de NOW
+
+
+def test_al_avanzar_el_reloj_las_muestras_futuras_participan():
+    samples = stopped(NOW - minutes(19), NOW + minutes(2))
+    # 1 min después: 20 min observados, todavía sin alerta (umbral estricto).
+    assert alerts_for(samples, now=NOW + minutes(1)) == ()
+    # 2 min después: las muestras que eran futuras ya cuentan.
+    [alert] = alerts_for(samples, now=NOW + minutes(2))
+    assert alert.observed_duration_s == 21 * 60
+    assert alert.last_sample_at == NOW + minutes(2)
+    assert alert.sample_count == 22
+
+
+def test_vehiculo_con_solo_muestras_futuras_es_evidencia_insuficiente():
+    samples = stopped(NOW + minutes(1), NOW + minutes(3))
+    ev = evaluate_vehicle("V1", samples, [ZONE], P, NOW)
+    assert ev.alerts == ()
+    assert ev.insufficient is not None
+    assert ev.insufficient.reason == REASON_FUTURE_ONLY
+    assert ev.insufficient.last_sample_at is None
+    assert "2026-11-06T12:01:00Z" in ev.insufficient.detail
+
+
+def test_muestra_futura_no_oculta_una_ultima_muestra_desactualizada():
+    samples = stopped(NOW - minutes(40), NOW - minutes(5))
+    samples.append(Sample("V1", eid(), NOW + minutes(2), *CENTER, 0.0))
+    ev = evaluate_vehicle("V1", samples, [ZONE], P, NOW)
+    assert ev.alerts == ()
+    assert ev.insufficient is not None
+    assert ev.insufficient.reason == REASON_STALE
+    assert ev.insufficient.last_sample_at == NOW - minutes(5)
+
+
+def test_vehiculos_con_solo_muestras_futuras_cuentan_en_la_cobertura():
+    rows = fleet_rows(["A"])
+    ev = evaluate_fleet(rows, [ZONE], P, NOW, NOW - timedelta(hours=2),
+                        vehicles_in_window=1, max_vehicles=10, max_rows=1000,
+                        future_only=[("F", NOW + minutes(3))], future_only_total=1)
+    assert ev.complete is True
+    assert ev.vehicles_in_window == 2 and ev.vehicles_evaluated == 2
+    assert ev.vehicles_with_only_future_samples == 1
+    assert [(i.vehicle_id, i.reason) for i in ev.insufficient] == [("F", REASON_FUTURE_ONLY)]
+    assert [a.vehicle_id for a in ev.alerts] == ["A"]
+
+
+def test_tope_de_vehiculos_con_solo_muestras_futuras_es_parcial():
+    ev = evaluate_fleet([], [ZONE], P, NOW, NOW - timedelta(hours=2),
+                        vehicles_in_window=0, max_vehicles=1, max_rows=1000,
+                        future_only=[("F1", NOW + minutes(1))], future_only_total=2)
+    assert ev.complete is False
+    assert ev.incomplete_reasons == (REASON_MAX_VEHICLES,)
+    assert ev.vehicles_in_window == 2 and ev.vehicles_not_evaluated == 1

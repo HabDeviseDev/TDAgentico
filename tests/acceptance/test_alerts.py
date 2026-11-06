@@ -125,3 +125,52 @@ def test_historial_bloqueado_da_503_degrada_alertas_y_se_recupera(api, db):
         assert "alerts" in recovered and "complete" in recovered
 
     assert api.get("/v1/alerts").status_code == 200
+
+
+def insufficient_of(body: dict, vehicle_id: str) -> dict | None:
+    return next((i for i in body["insufficient_evidence"] if i["vehicle_id"] == vehicle_id), None)
+
+
+def test_muestras_futuras_no_cuentan_hasta_su_hora(api, db, vehicle_id, test_zone):
+    """Regresión: 19,5 min hasta el presente + 1 min futuro no alerta; al
+    avanzar el reloj, las muestras que eran futuras participan."""
+    now = datetime.now(timezone.utc).replace(microsecond=0)
+    at = {"lat": test_zone["lat"], "lon": test_zone["lon"]}
+    future_only = f"{vehicle_id}-F"
+    stale = f"{vehicle_id}-S"
+    regression = [make_event(vehicle_id, now + timedelta(seconds=s), speed_kmh=0.0, **at)
+                  for s in range(-19 * 60 - 30, 61, 30)]
+    publish(api, regression)
+    publish(api, [make_event(future_only, now + timedelta(minutes=3), speed_kmh=0.0, **at)])
+    publish(api, [make_event(stale, now - timedelta(minutes=5), speed_kmh=0.0, **at),
+                  make_event(stale, now + timedelta(minutes=2), speed_kmh=0.0, **at)])
+
+    def processed():
+        body = api.get("/v1/alerts").json()
+        return insufficient_of(body, future_only) and insufficient_of(body, stale)
+    wait_until(processed, timeout=20, message="vehículos con muestras futuras evaluados")
+
+    body = api.get("/v1/alerts").json()
+    assert datetime.fromisoformat(body["evaluated_at"].replace("Z", "+00:00")) < now + timedelta(seconds=60)
+    assert alerts_of(api, vehicle_id) == []
+    assert not any(a["vehicle_id"] == vehicle_id for a in body["alerts"])
+    assert insufficient_of(body, vehicle_id) is None        # su última muestra evaluable es vigente
+
+    f = insufficient_of(body, future_only)
+    assert f["reason"] == "only_future_samples" and f["last_sample_at"] is None
+    assert body["coverage"]["vehicles_with_only_future_samples"] >= 1
+
+    s = insufficient_of(body, stale)
+    assert s["reason"] == "stale_last_sample"
+    assert s["last_sample_at"].startswith((now - timedelta(minutes=5)).strftime("%Y-%m-%dT%H:%M:%S"))
+
+    # Las futuras se conservan en el historial.
+    assert db.execute("SELECT count(*) FROM position_history WHERE vehicle_id = %s AND captured_at > %s",
+                      (vehicle_id, now)).fetchone()[0] == 2
+
+    # Al pasar now + 60 s, el tramo llega a 20,5 min con las muestras que eran futuras.
+    wait_until(lambda: len(alerts_of(api, vehicle_id)) == 1, timeout=120,
+               message="alerta cuando las muestras futuras ya son evaluables")
+    [alert] = alerts_of(api, vehicle_id)
+    assert alert["observed_duration_s"] == 20 * 60 + 30
+    assert alert["last_sample_at"].startswith((now + timedelta(seconds=60)).strftime("%Y-%m-%dT%H:%M:%S"))

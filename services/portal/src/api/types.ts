@@ -66,7 +66,8 @@ export interface InsufficientEvidence {
   vehicle_id: string;
   reason: string;
   detail: string;
-  last_sample_at: string;
+  /** Última muestra evaluable; null si solo hay muestras posteriores a la evaluación. */
+  last_sample_at: string | null;
 }
 
 export interface AlertParameters {
@@ -93,6 +94,7 @@ export interface AlertsEvent {
     vehicles_evaluated: number;
     vehicles_not_evaluated: number;
     vehicles_without_recent_samples: number;
+    vehicles_with_only_future_samples: number;
   };
   zone_ids: string[];
   alert_count: number;

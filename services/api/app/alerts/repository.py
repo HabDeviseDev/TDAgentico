@@ -1,6 +1,7 @@
 """Lectura de zonas e historial para evaluar alertas.
 
-Una evaluación hace tres consultas dentro de una transacción
+Una evaluación hace tres consultas (cuatro si hay vehículos con solo
+muestras futuras) dentro de una transacción
 REPEATABLE READ, READ ONLY: zonas, conteos e historial ven la misma
 instantánea de la BD aunque el consumidor siga insertando.
 
@@ -28,12 +29,37 @@ WHERE active
 ORDER BY zone_id
 """
 
-COUNTS_SQL = """
+# Todas las consultas usan el mismo instante de evaluación (`evaluated_at`)
+# como límite superior: las muestras posteriores se conservan en el
+# historial pero todavía no cuentan.
+
+# Sin muestras evaluables en la ventana, pero con alguna posterior a
+# `evaluated_at` (reloj del emisor adelantado).
+_FUTURE_ONLY_FILTER = """
+    f.captured_at > %(evaluated_at)s
+    AND NOT EXISTS (SELECT 1 FROM position_history h
+                    WHERE h.vehicle_id = f.vehicle_id
+                      AND h.captured_at >= %(window_start)s
+                      AND h.captured_at <= %(evaluated_at)s)
+"""
+
+COUNTS_SQL = f"""
 SELECT
   (SELECT count(DISTINCT vehicle_id) FROM position_history
-    WHERE captured_at >= %(window_start)s),
+    WHERE captured_at >= %(window_start)s AND captured_at <= %(evaluated_at)s),
   (SELECT count(*) FROM vehicle_current_position
-    WHERE captured_at < %(window_start)s)
+    WHERE captured_at < %(window_start)s),
+  (SELECT count(DISTINCT f.vehicle_id) FROM position_history f
+    WHERE {_FUTURE_ONLY_FILTER})
+"""
+
+FUTURE_ONLY_SQL = f"""
+SELECT f.vehicle_id, min(f.captured_at)
+FROM position_history f
+WHERE {_FUTURE_ONLY_FILTER}
+GROUP BY f.vehicle_id
+ORDER BY f.vehicle_id
+LIMIT %(max_vehicles)s
 """
 
 # Una muestra por instante (mayor event_id), ordenada por vehículo y tiempo.
@@ -48,6 +74,7 @@ WITH bound AS (
     FROM (SELECT DISTINCT vehicle_id
           FROM position_history
           WHERE captured_at >= %(window_start)s
+            AND captured_at <= %(evaluated_at)s
           ORDER BY vehicle_id
           LIMIT %(max_vehicles)s) v
 )
@@ -55,6 +82,7 @@ SELECT DISTINCT ON (h.vehicle_id, h.captured_at)
        h.vehicle_id, h.event_id::text, h.captured_at, h.lat, h.lon, h.speed_kmh
 FROM position_history h, bound
 WHERE h.captured_at >= %(window_start)s
+  AND h.captured_at <= %(evaluated_at)s
   AND h.vehicle_id <= bound.last_id
 ORDER BY h.vehicle_id, h.captured_at, h.event_id DESC
 LIMIT %(row_limit)s
@@ -66,6 +94,8 @@ class _Snapshot:
     zones: list[Zone]
     vehicles_in_window: int
     vehicles_without_recent: int
+    future_only_total: int
+    future_only: list[tuple[str, datetime]]
     rows: list[Sample]
 
 
@@ -89,24 +119,29 @@ class AlertRepository:
     async def evaluate(self) -> FleetEvaluation:
         now = self._clock()
         window_start = now - timedelta(seconds=self.params.window_s)
-        snap = await self._reader.run(lambda conn: self._read(conn, window_start), "alertas")
+        snap = await self._reader.run(lambda conn: self._read(conn, window_start, now), "alertas")
         # La regla es CPU pura: fuera del event loop para no frenar el SSE.
         return await asyncio.to_thread(
             evaluate_fleet, snap.rows, snap.zones, self.params, now, window_start,
             vehicles_in_window=snap.vehicles_in_window,
             max_vehicles=self.max_vehicles, max_rows=self.max_rows,
-            vehicles_without_recent_samples=snap.vehicles_without_recent)
+            vehicles_without_recent_samples=snap.vehicles_without_recent,
+            future_only=snap.future_only, future_only_total=snap.future_only_total)
 
-    async def _read(self, conn, window_start: datetime) -> _Snapshot:
-        params = {"window_start": window_start, "max_vehicles": self.max_vehicles,
-                  "row_limit": self.max_rows + 1}
+    async def _read(self, conn, window_start: datetime, evaluated_at: datetime) -> _Snapshot:
+        params = {"window_start": window_start, "evaluated_at": evaluated_at,
+                  "max_vehicles": self.max_vehicles, "row_limit": self.max_rows + 1}
         async with conn.transaction():
             async with conn.cursor() as cur:
                 await cur.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
                 await cur.execute(ACTIVE_ZONES_SQL)
                 zones = [Zone(*row) for row in await cur.fetchall()]
                 await cur.execute(COUNTS_SQL, params)
-                in_window, without_recent = await cur.fetchone()
+                in_window, without_recent, future_total = await cur.fetchone()
+                future_only: list[tuple[str, datetime]] = []
+                if future_total:
+                    await cur.execute(FUTURE_ONLY_SQL, params)
+                    future_only = [(v, t) for v, t in await cur.fetchall()]
                 await cur.execute(HISTORY_SQL, params)
                 rows = [Sample(*row) for row in await cur.fetchall()]
-        return _Snapshot(zones, in_window, without_recent, rows)
+        return _Snapshot(zones, in_window, without_recent, future_total, future_only, rows)

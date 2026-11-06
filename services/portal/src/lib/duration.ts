@@ -16,6 +16,7 @@ export function formatObservedDuration(seconds: number, startUnknown: boolean): 
 
 const reasonLabels: Record<string, string> = {
   stale_last_sample: "Última muestra desactualizada",
+  only_future_samples: "Solo muestras con fecha posterior a la evaluación",
   max_vehicles: "se alcanzó el máximo de vehículos por evaluación",
   max_rows: "se alcanzó el máximo de filas de historial por evaluación",
 };

@@ -22,8 +22,14 @@ Definiciones
   de la primera. El paso del tiempo sin muestras nuevas no la aumenta.
 - Alerta: el tramo actual (el que contiene la última muestra del vehículo)
   dura MÁS de `alert_after_s` (exactamente el umbral no alerta).
-- Evidencia insuficiente: la última muestra tiene más de
-  `max_sample_age_s` segundos respecto a `now`. No se emite alerta.
+- Instante de evaluación: solo cuentan las muestras con
+  `captured_at <= now`. Las posteriores (desfase de reloj del emisor) se
+  conservan en el historial y participan en evaluaciones cuyo `now` ya las
+  alcanzó; antes no pueden ocultar una última muestra desactualizada ni
+  alargar un tramo.
+- Evidencia insuficiente: la última muestra evaluable tiene más de
+  `max_sample_age_s` segundos respecto a `now`, o el vehículo solo tiene
+  muestras posteriores a `now`. No se emite alerta.
 - Empates de `captured_at`: se usa una sola muestra por instante, la de
   mayor `event_id`, igual que vehicle_current_position (el consumidor
   conserva el mayor `(captured_at, event_id)`).
@@ -38,7 +44,7 @@ from __future__ import annotations
 import math
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Iterable, Sequence
 
 EARTH_RADIUS_M = 6_371_008.8  # radio medio de la Tierra (IUGG)
@@ -47,6 +53,7 @@ EARTH_RADIUS_M = 6_371_008.8  # radio medio de la Tierra (IUGG)
 ALERT_NAMESPACE = uuid.UUID("6f1d3c2e-8a4b-5c7d-9e0f-1a2b3c4d5e6f")
 
 REASON_STALE = "stale_last_sample"
+REASON_FUTURE_ONLY = "only_future_samples"
 REASON_MAX_VEHICLES = "max_vehicles"
 REASON_MAX_ROWS = "max_rows"
 
@@ -113,7 +120,8 @@ class InsufficientEvidence:
     vehicle_id: str
     reason: str
     detail: str
-    last_sample_at: datetime
+    # Última muestra evaluable (captured_at <= now); None si no hay ninguna.
+    last_sample_at: datetime | None
 
 
 @dataclass(frozen=True)
@@ -134,6 +142,7 @@ class FleetEvaluation:
     vehicles_evaluated: int
     vehicles_not_evaluated: int
     vehicles_without_recent_samples: int
+    vehicles_with_only_future_samples: int
     zones: tuple[Zone, ...]
     alerts: tuple[StopAlert, ...] = field(default_factory=tuple)
     insufficient: tuple[InsufficientEvidence, ...] = field(default_factory=tuple)
@@ -201,8 +210,13 @@ def alert_id(vehicle_id: str, zone_id: str, start_event_id: str | None) -> str:
 def evaluate_vehicle(vehicle_id: str, samples: Iterable[Sample], zones: Sequence[Zone],
                      p: StopRuleParams, now: datetime,
                      window_start: datetime | None = None) -> VehicleEvaluation:
-    ordered = one_sample_per_instant(samples)
+    everything = one_sample_per_instant(samples)
+    # Las muestras posteriores al instante de evaluación no cuentan todavía.
+    ordered = [s for s in everything if s.captured_at <= now]
     if not ordered:
+        if everything:
+            return VehicleEvaluation(vehicle_id, insufficient=future_only_evidence(
+                vehicle_id, everything[0].captured_at))
         return VehicleEvaluation(vehicle_id)
     last = ordered[-1]
     age_s = (now - last.captured_at).total_seconds()
@@ -245,6 +259,16 @@ def evaluate_vehicle(vehicle_id: str, samples: Iterable[Sample], zones: Sequence
     return VehicleEvaluation(vehicle_id, alerts=tuple(alerts))
 
 
+def future_only_evidence(vehicle_id: str, first_future_at: datetime) -> InsufficientEvidence:
+    return InsufficientEvidence(
+        vehicle_id=vehicle_id,
+        reason=REASON_FUTURE_ONLY,
+        detail=("Solo hay muestras posteriores al instante de evaluación (la primera, "
+                f"{first_future_at.astimezone(timezone.utc):%Y-%m-%dT%H:%M:%SZ}): aún no se pueden evaluar"),
+        last_sample_at=None,
+    )
+
+
 # -- flota --------------------------------------------------------------------
 
 def apply_row_limit(rows: Sequence[Sample], max_rows: int) -> tuple[list[Sample], bool]:
@@ -263,13 +287,21 @@ def apply_row_limit(rows: Sequence[Sample], max_rows: int) -> tuple[list[Sample]
 def evaluate_fleet(rows: Sequence[Sample], zones: Sequence[Zone], p: StopRuleParams,
                    now: datetime, window_start: datetime, *,
                    vehicles_in_window: int, max_vehicles: int, max_rows: int,
-                   vehicles_without_recent_samples: int = 0) -> FleetEvaluation:
+                   vehicles_without_recent_samples: int = 0,
+                   future_only: Sequence[tuple[str, datetime]] = (),
+                   future_only_total: int | None = None) -> FleetEvaluation:
     """Evalúa todos los vehículos de `rows` (ordenadas por vehículo).
 
-    `vehicles_in_window` es el total de vehículos con muestras en la ventana;
-    si se evaluaron menos (límites de vehículos o filas), el resultado se
-    marca como parcial con el motivo.
+    `vehicles_in_window` es el total de vehículos con muestras evaluables
+    (`window_start <= captured_at <= now`). `future_only` lista vehículos que
+    solo tienen muestras posteriores a `now` (vehículo, primera muestra) y
+    `future_only_total` cuántos hay en total: se informan como evidencia
+    insuficiente y cuentan en la cobertura. Si se evaluaron menos vehículos
+    que el total (límites de vehículos o filas), el resultado se marca como
+    parcial con el motivo.
     """
+    if future_only_total is None:
+        future_only_total = len(future_only)
     kept, rows_truncated = apply_row_limit(rows, max_rows)
     by_vehicle: dict[str, list[Sample]] = {}
     for s in kept:
@@ -282,14 +314,20 @@ def evaluate_fleet(rows: Sequence[Sample], zones: Sequence[Zone], p: StopRulePar
         alerts.extend(ev.alerts)
         if ev.insufficient is not None:
             insufficient.append(ev.insufficient)
+    future_ids = {v for v, _ in future_only} - set(by_vehicle)
+    for vehicle_id, first_future_at in future_only:
+        if vehicle_id in future_ids:
+            insufficient.append(future_only_evidence(vehicle_id, first_future_at))
+    insufficient.sort(key=lambda i: i.vehicle_id)
 
     reasons = []
-    if vehicles_in_window > max_vehicles:
+    if vehicles_in_window > max_vehicles or future_only_total > len(future_only):
         reasons.append(REASON_MAX_VEHICLES)
     if rows_truncated:
         reasons.append(REASON_MAX_ROWS)
-    evaluated = len(by_vehicle)
-    not_evaluated = max(0, vehicles_in_window - evaluated)
+    total = vehicles_in_window + future_only_total
+    evaluated = len(by_vehicle) + len(future_ids)
+    not_evaluated = max(0, total - evaluated)
     alerts.sort(key=lambda a: (-a.observed_duration_s, a.vehicle_id, a.zone_id))
     return FleetEvaluation(
         evaluated_at=now,
@@ -297,10 +335,11 @@ def evaluate_fleet(rows: Sequence[Sample], zones: Sequence[Zone], p: StopRulePar
         params=p,
         complete=not reasons and not_evaluated == 0,
         incomplete_reasons=tuple(reasons),
-        vehicles_in_window=vehicles_in_window,
+        vehicles_in_window=total,
         vehicles_evaluated=evaluated,
         vehicles_not_evaluated=not_evaluated,
         vehicles_without_recent_samples=vehicles_without_recent_samples,
+        vehicles_with_only_future_samples=future_only_total,
         zones=tuple(zones),
         alerts=tuple(alerts),
         insufficient=tuple(insufficient),
