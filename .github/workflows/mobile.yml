@@ -1,0 +1,86 @@
+# App del conductor (services/mobile): tipos, pruebas y compilación Android con EAS.
+#
+# - `checks` corre en cada push/PR que toque la app: instala desde el lockfile,
+#   comprueba tipos y ejecuta las pruebas (SQLite real con node:sqlite).
+# - `android-build` solo corre a mano (workflow_dispatch) y solo si existe el
+#   secreto EXPO_TOKEN. Usa las credenciales de la cuenta de Expo (EAS).
+name: mobile
+
+on:
+  push:
+    paths:
+      - "services/mobile/**"
+      - ".github/workflows/mobile.yml"
+  pull_request:
+    paths:
+      - "services/mobile/**"
+      - ".github/workflows/mobile.yml"
+  workflow_dispatch:
+    inputs:
+      build_android:
+        description: "Generar compilación Android con EAS (requiere EXPO_TOKEN)"
+        type: boolean
+        default: false
+      profile:
+        description: "Perfil de eas.json"
+        type: choice
+        options: [preview, production]
+        default: preview
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: services/mobile
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: services/mobile/package-lock.json
+      - name: Instalar dependencias (lockfile)
+        run: npm ci
+      - name: Comprobar tipos
+        run: npm run typecheck
+      - name: Pruebas
+        run: npm test
+
+  android-build:
+    needs: checks
+    if: github.event_name == 'workflow_dispatch' && inputs.build_android
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    steps:
+      - name: Verificar credenciales de EAS
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "::error::Falta el secreto EXPO_TOKEN (ver README, sección App del conductor)."
+            exit 1
+          fi
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: services/mobile/package-lock.json
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - name: Instalar dependencias (lockfile)
+        run: npm ci
+      - name: Compilación Android en EAS
+        run: eas build --platform android --profile "${{ inputs.profile }}" --non-interactive --no-wait

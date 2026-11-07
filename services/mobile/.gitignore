@@ -1,0 +1,10 @@
+node_modules/
+.expo/
+dist/
+web-build/
+# Proyectos nativos generados por `expo prebuild` (EAS los genera en la nube).
+android/
+ios/
+*.apk
+*.aab
+npm-debug.*

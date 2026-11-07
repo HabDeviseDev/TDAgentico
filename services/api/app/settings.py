@@ -11,6 +11,9 @@ class Settings:
     kafka_bootstrap: str = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9094")
     kafka_send_timeout_s: float = float(os.getenv("KAFKA_SEND_TIMEOUT_S", "5"))
     kafka_startup_retries: int = int(os.getenv("KAFKA_STARTUP_RETRIES", "30"))
+    # Ingesta por lotes (POST /v1/positions/batch).
+    batch_max_events: int = int(os.getenv("BATCH_MAX_EVENTS", "200"))
+    batch_max_bytes: int = int(os.getenv("BATCH_MAX_BYTES", str(256 * 1024)))
 
     database_url: str = os.getenv("DATABASE_URL", "postgresql://fleet:fleet@localhost:5432/fleet")
     db_pool_min: int = int(os.getenv("DB_POOL_MIN", "1"))

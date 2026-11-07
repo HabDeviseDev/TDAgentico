@@ -101,6 +101,9 @@ services:
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KAFKA_SEND_TIMEOUT_S: "5"
+      # POST /v1/positions/batch: máximo de eventos y de bytes por solicitud.
+      BATCH_MAX_EVENTS: ${BATCH_MAX_EVENTS:-200}
+      BATCH_MAX_BYTES: ${BATCH_MAX_BYTES:-262144}
       DATABASE_URL: postgresql://fleet:fleet@timescaledb:5432/fleet
       DB_POOL_MAX: "5"
       # Límite de una lectura de posiciones (conexión + consulta).

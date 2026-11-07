@@ -7,6 +7,7 @@ MVP de monitoreo de flotas.
 - **Etapa 2:** portal en tiempo real con la última posición de cada vehículo.
 - **Etapa 3:** zonas críticas y alertas de detención dentro de ellas.
 - **Etapa 4:** agente operativo (LangChain) con chat en el portal y herramientas de solo lectura.
+- **Etapa 5:** app del conductor (React Native + Expo + SQLite) que funciona sin conexión e ingesta por lotes.
 
 ```
 POST /v1/positions ──► FastAPI ──(acks=all)──► Kafka: fleet.positions.v1 ──► consumidor ──(1 transacción)──► TimescaleDB
@@ -16,6 +17,7 @@ Navegador ◄── SSE /v1/vehicles/stream ◄── nginx (portal) ◄── F
                                                               └─ hub de alertas: zonas + historial (1 por instancia) ◄─┘
 
 Chat: navegador ──POST /v1/chat──► nginx (portal) ──► agente (LangChain + Claude) ──GET (circuit breaker)──► API de flota
+Móvil: GPS ──► SQLite (cola local) ──POST /v1/positions/batch──► API ──► Kafka ──► …
 ```
 
 ## Inicio rápido
@@ -65,6 +67,8 @@ Sin credencial todo lo demás funciona y el chat informa que el agente requiere 
 | `services/portal/` | SPA React + TypeScript (Vite, Leaflet) servida por nginx con proxy a la API |
 | `scripts/simulate.py` | Simulador de flota alrededor de Bogotá (solo biblioteca estándar) |
 | `scripts/demo_alerts.py` | Escenarios de demostración de alertas (solo biblioteca estándar) |
+| `services/mobile/` | App del conductor (Expo 58, React Native 0.88, TypeScript): `src/core/` (contrato, cola SQLite, sincronización; sin React Native), `src/ui/` (hook de la app), `App.tsx` (pantalla), `test/` y `e2e/` |
+| `.github/workflows/mobile.yml` | CI de la app: tipos y pruebas; compilación Android con EAS manual |
 | `services/agent/fleet_agent/` | Agente operativo: `tools.py` (herramientas tipadas), `agent.py` (bucle y límites), `fleet_client.py` (HTTP de solo lectura), `breaker.py` (circuit breaker), `model.py` (proveedor), `main.py` (`POST /v1/chat`) |
 | `.env.example` | Variables del agente y credencial del proveedor (copiar a `.env`, que no se versiona) |
 | `services/consumer/` | Consumidor `confluent-kafka` + `psycopg` |
@@ -90,6 +94,35 @@ Sin credencial todo lo demás funciona y el chat informa que el agente requiere 
 
 - El `event_id` lo genera el emisor. Un reintento debe reutilizarlo.
 - Respuestas: `202` cuando Kafka confirmó el mensaje, `422` si el evento es inválido y `503` si Kafka no confirmó. En ese caso hay que reintentar con el mismo `event_id`.
+
+### Ingesta por lotes: `POST /v1/positions/batch`
+
+Cuerpo `{"events": [evento, evento, …]}`. Usa la misma validación (`PositionEvent` y "no más de 5 min en el futuro") y la misma publicación (`publish_event`, `acks=all`) que el endpoint individual, que no cambia.
+
+```json
+{"received": 4, "accepted": 2, "rejected": 1, "retryable": 1,
+ "results": [
+   {"index": 0, "event_id": "0192f5a8-…", "status": "accepted", "error": null},
+   {"index": 1, "event_id": "8c1d…", "status": "retryable", "error": "Kafka no confirmó la publicación: …"},
+   {"index": 2, "event_id": "77aa…", "status": "rejected", "error": "speed_kmh: Input should be greater than or equal to 0"},
+   {"index": 3, "event_id": null, "status": "rejected", "error": "el evento debe ser un objeto JSON"}]}
+```
+
+- **Un resultado por evento**, en el orden de entrada. `index` es la posición en el lote y `event_id` es el recibido, incluso si el evento es inválido (`null` si no venía o no era texto).
+  - `accepted`: Kafka confirmó la publicación (`acks=all`).
+  - `rejected`: validación definitiva; reenviarlo igual no servirá.
+  - `retryable`: no se pudo confirmar la publicación (error o timeout de Kafka); hay que reenviarlo con el mismo `event_id` y contenido.
+- **Publicación parcial:** los eventos válidos se publican en paralelo y cada uno espera su propia confirmación. Un lote puede quedar en parte aceptado y en parte `retryable`. La respuesta es `200` con los resultados individuales.
+- **Reenvío seguro:** si se pierde la respuesta, el cliente reenvía los mismos eventos. La deduplicación del consumidor (`ingested_events`) evita duplicados en la base.
+- **Límites** (configurables en el servicio `api`):
+
+  | Variable | Por defecto | Si se supera |
+  |---|---|---|
+  | `BATCH_MAX_EVENTS` | `200` | `413`, sin publicar nada |
+  | `BATCH_MAX_BYTES` | `262144` (256 KiB) | `413`; se comprueba en `Content-Length` y al leer el cuerpo |
+
+  Un JSON inválido da `400`, y un cuerpo sin la forma `{"events": [...]}` o vacío da `422`.
+- **Event loop:** el JSON se decodifica y los eventos se validan en un hilo (`asyncio.to_thread`); la publicación es asíncrona.
 
 ## Garantías
 
@@ -216,7 +249,17 @@ Mientras tanto, `GET /v1/vehicles` responde `503` a los 3 s y el portal muestra 
 
 - `/v1/vehicles/stream` usa `proxy_buffering off`, `gzip off`, HTTP/1.1 sin `Connection: close` y `proxy_read_timeout` de 120 s, ocho veces el heartbeat. La API además envía `X-Accel-Buffering: no`.
 - `/v1/` reenvía el resto de la API, incluida la ingesta `POST /v1/positions`.
-- `/v1/chat` va al servicio `agent` (`AGENT_UPSTREAM`), con `proxy_read_timeout` de 90 s (`PORTAL_CHAT_READ_TIMEOUT`), mayor que el límite del chat, y cuerpo máximo de 16 kB. El nombre se resuelve en cada petición con el DNS de Docker (`resolver 127.0.0.11`), así que el portal arranca aunque el agente no esté levantado; en ese caso el chat responde `502` y el portal lo muestra con opción de reintentar.
+- `/v1/chat` va al servicio `agent` (`AGENT_UPSTREAM`), con `proxy_read_timeout` de 90 s (`PORTAL_CHAT_READ_TIMEOUT`), mayor que el límite del chat, y cuerpo máximo de 16 kB. Si el agente no está levantado, el chat responde `502` y el portal lo muestra con opción de reintentar.
+- **Resolución DNS en cada petición:** todas las rutas usan `proxy_pass $variable` con `resolver 127.0.0.11 valid=10s` (DNS de Docker).
+  - Si se recrea `api` o `agent` y cambia su IP, el portal la encuentra sin reiniciarse.
+  - Con una URL fija, nginx resolvía el nombre una sola vez al arrancar y respondía `502` hasta reiniciarlo.
+  - Comprobación:
+
+    ```bash
+    docker compose up -d --force-recreate --no-deps api
+    ```
+
+    Por el portal, REST vuelve a `200` en unos segundos. Un `EventSource` abierto marca "Conexión perdida", reconecta solo y recibe `status` y `snapshot`.
 
 ## Zonas críticas y alertas de detención
 
@@ -622,6 +665,212 @@ docker compose logs agent
   - Evidencias plegables.
   - Botones con los vehículos devueltos, que los seleccionan en el mapa y en el detalle.
 
+## App del conductor (móvil, sin conexión)
+
+App Android en `services/mobile`. Captura posiciones, las guarda primero en SQLite y las envía por lotes a la ingesta existente cuando hay conexión.
+
+Stack: Expo SDK 58, React Native 0.88, React 19.3, TypeScript 6.0, `expo-sqlite`, `expo-location`, `@react-native-community/netinfo` y `expo-crypto`.
+
+### Alcance de la captura
+
+- **Solo con la app abierta:** usa el permiso de ubicación "mientras se usa la app", que se pide de forma explícita. Hay botones de **Iniciar** y **Detener**. Los permisos de ubicación en segundo plano están bloqueados en `app.json`.
+- **En segundo plano la captura se pausa:** la interfaz muestra "En pausa". Al volver a la app se reanuda si estaba iniciada y se sincroniza. Las posiciones pendientes siguen en SQLite. Capturar con la app cerrada requeriría un servicio en primer plano o tareas de fondo; queda fuera de este MVP.
+- **Modo simulado:** genera lecturas ficticias (m/s y hora) sobre un circuito de Bogotá, con paradas, sin GPS ni permiso. Pasan por la misma conversión y validación que las reales.
+  - Se identifica con una franja naranja "MODO SIMULADO" y la etiqueta "Lectura simulada".
+  - En SQLite quedan con `simulated = 1`. El contrato de ingesta no tiene ese campo: en el servidor solo se distinguen por el vehículo que elijas, por ejemplo `SIM-01`.
+  - Un interruptor permite simular lecturas sin velocidad.
+
+### Persistencia local
+
+Cada lectura se guarda en la tabla `outbox` **antes** de cualquier envío. Guarda:
+
+- `event_id`: UUID generado una sola vez al capturar.
+- `vehicle_id`.
+- `captured_at`: ISO-8601 UTC.
+- `lat`, `lon` y `speed_kmh`.
+- `payload`: el JSON exacto que se envía.
+- `status`, `attempts`, `next_attempt_at` y `last_error`.
+
+| Estado | Significado |
+|---|---|
+| `pending` | Esperando la confirmación del servidor |
+| `sending` | En un envío en curso |
+| `accepted` | **Recibido por el servidor**: la API confirmó la publicación en Kafka |
+| `rejected` | Error de validación definitivo; se conserva con el motivo |
+| `skipped` | No se envía; se conserva con el motivo |
+
+- **Recibido no es procesado:** "recibido" corresponde al ack de la API, no al guardado en TimescaleDB, que ocurre después en el consumidor y se ve en el portal.
+- **Reintentos idénticos:** cada reintento envía el mismo `payload` guardado, con el mismo `event_id` y los mismos bytes. Cambiar de vehículo en la interfaz solo afecta a las capturas nuevas.
+- **Migraciones:** son locales y reproducibles (`src/core/migrations.ts`, versión en `PRAGMA user_version`, una transacción por migración). La cola y la configuración (URL y vehículo) sobreviven al cierre de la app.
+
+### Contrato y velocidad
+
+- **Misma semántica que `fleet_contracts`:**
+  - `vehicle_id` de 1 a 64 caracteres, sin espacios en los extremos y distinguiendo mayúsculas.
+  - `lat` entre −90 y 90 y `lon` entre −180 y 180.
+  - `speed_kmh` entre 0 y 300.
+  - Fecha con zona horaria; se envía en UTC con `Z`.
+- **Conversión:** la velocidad del dispositivo (m/s) se convierte de forma explícita a km/h (× 3,6).
+- **Velocidad desconocida:** si el dispositivo no la informa (`null`), si es negativa (Android e iOS usan −1 para "no disponible"), no es numérica o queda fuera de rango, **no se convierte en 0**. Un 0 falso parecería una detención y podría disparar alertas de detención en zonas.
+  - En este MVP la lectura se guarda como `skipped` con el motivo y no se envía.
+  - La interfaz muestra "Velocidad desconocida" y la sección "Omitidos".
+- **Reloj adelantado:** la regla "no más de 5 min en el futuro" la aplica la API. Si el reloj del teléfono está adelantado, el evento vuelve como rechazado con el motivo.
+
+### Sincronización
+
+`SyncCoordinator` (`src/core/sync.ts`) es el único que envía.
+
+- **Disparadores:**
+  - Al abrir la app y al volver a ella.
+  - Al recuperar la conexión (NetInfo).
+  - Al pulsar "Sincronizar ahora".
+  - Cada 15 s mientras la app está activa.
+  - Después de cada captura.
+- **Sin envíos simultáneos:** si llega un disparador durante un envío, se agrupa y se hace una sola ronda más al terminar.
+- **Conectividad:** la señal de NetInfo solo decide si vale la pena intentarlo. La confirmación la da la respuesta HTTP de cada evento.
+- **Lotes:** de hasta 50 eventos, tomados de SQLite en una transacción (`pending` → `sending`). Los resultados se aplican en otra transacción y se correlacionan por `index` **y** `event_id`:
+
+  | Resultado | Efecto |
+  |---|---|
+  | `accepted` | Recibido; sale de pendientes |
+  | `rejected` | Sección de errores definitivos, con el motivo |
+  | `retryable`, error de red, timeout, HTTP de error, JSON inválido | Sigue pendiente con espera creciente |
+  | Resultado ausente, duplicado, de otro `event_id` o mal formado | Sigue pendiente |
+
+- **Espera entre reintentos:** base 2 s, factor 2, tope 5 min, con jitter (la mitad fija y la otra mitad aleatoria), en `src/ui/config.ts`.
+- **Envío interrumpido:** si la app se cierra durante un envío, al abrirla los eventos en `sending` vuelven a `pending` y se reenvían con el mismo `event_id`. Si el servidor ya los había aceptado, el consumidor los descarta como duplicados.
+
+### Interfaz
+
+Una pantalla con:
+
+- URL de la API y vehículo, guardados en SQLite.
+- Estado del permiso de ubicación, modo simulado y botones Iniciar/Detener.
+- Última coordenada, hora local y UTC, y velocidad en km/h o "Desconocida".
+- Conectividad.
+- Contadores: pendientes, recibidos por el servidor, rechazados y omitidos.
+- Próximo intento y último error recuperable ("se reintentará, nada se pierde").
+- Botón "Sincronizar ahora".
+- Listas de rechazados y omitidos con su motivo.
+
+### Ejecutar en un teléfono o emulador Android
+
+Necesitas Node 22.13 o superior en la PC. El Node 16 de este equipo es demasiado antiguo; las comprobaciones de este repositorio se corrieron con `node:22` en Docker.
+
+1. Levanta el stack (`docker compose up -d --build --wait`). La API queda publicada en el puerto 8000 de la PC.
+2. Instala las dependencias de la app:
+
+   ```bash
+   cd services/mobile && npm ci
+   ```
+
+3. Arranca Expo:
+
+   ```bash
+   npx expo start
+   ```
+
+4. En el teléfono, instala **Expo Go** compatible con el SDK 58 y escanea el QR. En un emulador, pulsa `a` en la terminal de Expo.
+5. En la app, configura la **URL de la API**. Debe ser accesible desde el dispositivo:
+   - Emulador de Android: `http://10.0.2.2:8000` (valor por defecto).
+   - Teléfono en la misma Wi-Fi: `http://<IP-de-la-PC>:8000`, por ejemplo `http://192.168.1.20:8000`. En Windows hay que permitir el puerto 8000 en el firewall. También sirve el portal, `http://<IP>:8088`, que reenvía `/v1/`.
+   - Se admite `http` sin TLS (`usesCleartextTraffic` en `app.json`) solo para la red local de desarrollo.
+6. Pulsa **Guardar configuración**, concede el permiso (o activa el modo simulado) y pulsa **Iniciar captura**.
+
+### Compilación Android con EAS
+
+`eas.json` define los perfiles `development`, `preview` (APK de distribución interna) y `production` (AAB).
+
+**Desde la PC:**
+
+```bash
+npm install -g eas-cli
+```
+
+```bash
+eas login
+```
+
+```bash
+cd services/mobile && eas init
+```
+
+`eas init` agrega `extra.eas.projectId` a `app.json`; haz commit de ese cambio.
+
+```bash
+eas build --platform android --profile preview
+```
+
+EAS entrega un enlace para descargar el APK. Instálalo en el teléfono, permitiendo instalar desde esa fuente.
+
+**Desde GitHub Actions** (`.github/workflows/mobile.yml`):
+
+- El job `checks` corre en cada push o PR que toque la app: `npm ci` desde el lockfile, `npm run typecheck` y `npm test`.
+- El job `android-build` solo corre a mano: *Actions → mobile → Run workflow*, con `build_android = true` y un perfil.
+  - Requiere el secreto **`EXPO_TOKEN`**, un token de acceso de expo.dev (*Account settings → Access tokens*), guardado en *Settings → Secrets and variables → Actions*.
+  - Requiere el `projectId` de `eas init` en `app.json`.
+  - Sin el secreto, el job falla con un mensaje explícito.
+  - Lanza la compilación con `--no-wait`; el progreso se ve en expo.dev.
+
+### Pruebas de la app
+
+```bash
+cd services/mobile && npm run typecheck && npm test
+```
+
+- `test/contract.test.ts`: lógica pura, sin dobles. Conversión de m/s a km/h, velocidad desconocida que no se vuelve 0, rangos, fechas UTC, regla de `vehicle_id` igual que la ingesta, URL y simulador.
+- `test/queue.test.ts`: **SQLite real** (`node:sqlite`, archivo en disco) y un **doble** del endpoint de lotes (`test/fakeIngest.ts`). Cubre:
+  - Cola que sobrevive a cerrar y reabrir la base, y migraciones idempotentes.
+  - Configuración guardada y cambio de vehículo sin afectar los pendientes.
+  - Reintento con el mismo ID y los mismos bytes.
+  - Respuesta perdida después de aceptar.
+  - Aceptación parcial, y rechazo definitivo que se conserva y no se reenvía.
+  - Resultados ausentes, duplicados, de otro `event_id`, con estado desconocido o sin lista.
+  - Errores HTTP, JSON inválido y timeout.
+  - Seis disparadores simultáneos: un envío a la vez y sin duplicados.
+  - Recuperación de un envío interrumpido.
+  - Sin conexión no se envía; las omitidas no se envían.
+  - Espera con jitter y tope.
+- `e2e/offline-walkthrough.e2e.ts` (`npm run e2e`, no corre en `npm test`): el núcleo real de la app contra la **API real**. Solo simula el corte de red y una respuesta perdida.
+
+Las comprobaciones se corrieron en Docker (`node:22-bookworm-slim`, con `node_modules` en un volumen):
+
+```bash
+MSYS_NO_PATHCONV=1 docker run --rm -v "$(pwd -W)/services/mobile:/app" -v fleet-mobile-modules:/app/node_modules -w /app node:22-bookworm-slim sh -c "npm ci && npm run typecheck && npm test && npx expo export --platform android --output-dir /tmp/dist"
+```
+
+```bash
+MSYS_NO_PATHCONV=1 docker run --rm --network fleet_default -e API_URL=http://api:8000 -v "$(pwd -W)/services/mobile:/app" -v fleet-mobile-modules:/app/node_modules -w /app node:22-bookworm-slim npm run e2e
+```
+
+### Recorrido sin conexión
+
+**En un dispositivo** (pendiente de ejecutar en un teléfono real):
+
+1. Con conexión: configura la URL y el vehículo, inicia la captura y espera unos "Recibidos por el servidor".
+2. Activa el modo avión: la conectividad pasa a "Sin conexión" y crecen los "Pendientes de confirmar".
+3. Cierra la app por completo y vuelve a abrirla: los pendientes siguen. Si quedó un envío a medias, aparece el aviso de eventos recuperados.
+4. Desactiva el modo avión: la reconexión dispara la sincronización (o pulsa "Sincronizar ahora") y los pendientes pasan a recibidos.
+5. En el portal (`http://localhost:8088`), busca el vehículo: muestra la posición más reciente.
+6. Verifica el historial y los duplicados:
+
+   ```bash
+   docker compose exec timescaledb psql -U fleet -d fleet -c "SELECT count(*), count(DISTINCT event_id) FROM position_history WHERE vehicle_id = 'MOVIL-001'"
+   ```
+
+   Ambos números deben coincidir.
+
+**Automatizado** (`npm run e2e`, verificado con el stack real):
+
+1. 3 capturas con conexión: aceptadas.
+2. 5 capturas sin red: pendientes.
+3. Base cerrada y reabierta: siguen 5 pendientes.
+4. Reconexión con una respuesta perdida tras la aceptación: siguen pendientes.
+5. Reenvío con los mismos `event_id`: 8 aceptadas.
+6. `GET /v1/vehicles` devuelve la última captura.
+
+En TimescaleDB quedaron 8 filas de historial con 8 `event_id` distintos, incluidas las 5 atrasadas (llegaron entre 6 y 10 min después de capturarse). El consumidor registró `nuevos=5 duplicados=5` para el reenvío. El portal mostró la posición más reciente del vehículo.
+
 ## Simulador
 
 Envía posiciones por la API existente, como lo haría un dispositivo. Usa solo la biblioteca estándar de Python, así que también corre en el host:
@@ -694,6 +943,8 @@ docker compose --profile test run --rm --no-deps tests tests/unit -v
 | Prueba | Tipo | Qué comprueba |
 |---|---|---|
 | `tests/unit/test_api_kafka_errors.py` | Controlada (productor falso) | `503` cuando Kafka rechaza o no confirma a tiempo; `422` sin publicar |
+| `tests/unit/test_batch_ingest.py` | Controlada (productor falso) | Lote: resultado por evento con `index` y `event_id` (también inválidos, futuros o sin zona horaria); publicación parcial (error y timeout) en paralelo; reenvío con los mismos bytes; misma validación y publicación que el endpoint individual, que conserva `202`/`503`; límites de eventos y de bytes (también sin `Content-Length`); `400`/`422` por la forma del cuerpo |
+| `tests/acceptance/test_batch_ingestion.py` | Stack real | Lote con evento atrasado e inválidos; el atrasado entra al historial y la posición visible es la más reciente; reenvío del mismo lote sin duplicados; límites `413`/`422` |
 | `tests/unit/test_consumer_dlq.py` | Controlada (Kafka y BD falsos) | Orden DLQ confirmada → COMMIT → offset; si la DLQ falla (error o timeout) o la BD falla, no se confirma ningún offset |
 | `tests/acceptance/test_event_id_conflicts.py` | Solo TimescaleDB + stack | Reproceso del mensaje conflictivo: original intacto y un único registro; conflicto vía API |
 | `tests/acceptance/test_dlq.py` | Stack real | Mensaje inválido publicado directo en Kafka llega a la DLQ y su offset queda confirmado |
@@ -808,6 +1059,24 @@ docker compose start kafka
 - **Circuito por instancia:** con varias réplicas del agente, cada una abre y cierra su propio circuito.
 - **Sin autenticación ni cuotas por usuario:** el límite de concurrencia es por instancia.
 - **El modelo redacta el texto:** fechas, identificadores y advertencias están garantizados en los campos estructurados, no en la prosa.
+
+## Limitaciones de la etapa 5
+
+- **Sin prueba en un dispositivo:** la app no se ejecutó en un teléfono ni en un emulador Android, porque este entorno no tiene ninguno. Sí se verificó:
+  - Tipos.
+  - 42 pruebas de la lógica con SQLite real.
+  - El bundle de Android (`expo export`, 682 módulos).
+  - La configuración de Expo con sus plugins.
+  - La compatibilidad de dependencias con el SDK 58.
+  - El recorrido sin conexión con el núcleo real contra la API real.
+
+  Quedan pendientes en el dispositivo: el permiso, el GPS, NetInfo, la pausa en segundo plano y la interfaz.
+- **EAS sin ejecutar:** la compilación necesita una cuenta de Expo (`EXPO_TOKEN`, `eas init`). Tampoco se ejecutó el workflow de GitHub Actions; solo se validó su sintaxis.
+- **Solo con la app abierta:** no hay captura en segundo plano.
+- **Lecturas sin velocidad:** se omiten de la ingesta. Una versión futura podría enviar la velocidad como opcional si el contrato lo admite.
+- **Simulación en el servidor:** se distingue solo por el vehículo elegido; el contrato no tiene un campo de origen.
+- **Sin autenticación** de la app frente a la API, y `http` sin TLS solo para la red local de desarrollo.
+- **La cola local no se purga:** los eventos recibidos se conservan (en un MVP sirven como evidencia).
 
 ## Reiniciar desde cero
 
