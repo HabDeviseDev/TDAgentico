@@ -10,11 +10,13 @@ on:
   push:
     paths:
       - "services/mobile/**"
-      - ".github/workflows/mobile.yml"
+      - ".github/workflows/**"
+      - "scripts/check_workflow_order.py"
   pull_request:
     paths:
       - "services/mobile/**"
-      - ".github/workflows/mobile.yml"
+      - ".github/workflows/**"
+      - "scripts/check_workflow_order.py"
   workflow_dispatch:
     inputs:
       build_android:
@@ -44,6 +46,11 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+      - name: Orden de pasos de los workflows (checkout antes de usar el repositorio)
+        working-directory: .
+        run: |
+          python3 -m pip install --quiet pyyaml
+          python3 scripts/check_workflow_order.py .github/workflows/*.yml
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -64,13 +71,15 @@ jobs:
     env:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
     steps:
+      # Primero el checkout: los pasos `run` usan services/mobile como
+      # directorio de trabajo (defaults.run) y no existe antes de clonar.
+      - uses: actions/checkout@v4
       - name: Verificar credenciales de EAS
         run: |
           if [ -z "$EXPO_TOKEN" ]; then
             echo "::error::Falta el secreto EXPO_TOKEN (ver README, sección App del conductor)."
             exit 1
           fi
-      - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: "22"

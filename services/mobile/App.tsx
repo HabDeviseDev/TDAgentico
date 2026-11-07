@@ -16,6 +16,7 @@ const permissionLabel: Record<PermissionState, string> = {
 
 const captureLabel: Record<CaptureState, string> = {
   stopped: "Detenida",
+  starting: "Iniciando…",
   capturing: `Capturando cada ${APP_CONFIG.captureIntervalMs / 1000} s`,
   paused: "En pausa: la app está en segundo plano",
 };

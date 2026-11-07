@@ -4,6 +4,10 @@ import * as Location from "expo-location";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, type AppStateStatus } from "react-native";
 import { normalizeApiUrl, sendBatch } from "../core/api";
+import {
+  CaptureController, intervalSource, type CaptureMode, type CaptureStatus, type Fix, type FixSource,
+  type PermissionResult,
+} from "../core/capture";
 import { buildSample, normalizeVehicleId } from "../core/contract";
 import type { SqlDb } from "../core/db";
 import { migrate } from "../core/migrations";
@@ -14,8 +18,8 @@ import { SyncCoordinator, type SyncReport, type SyncTrigger } from "../core/sync
 import { openExpoDb } from "../db/expoDb";
 import { APP_CONFIG } from "./config";
 
-export type PermissionState = "unknown" | "granted" | "denied" | "blocked";
-export type CaptureState = "stopped" | "capturing" | "paused";
+export type PermissionState = "unknown" | PermissionResult;
+export type CaptureState = CaptureStatus;
 
 export interface LastFix {
   eventId: string;
@@ -54,6 +58,21 @@ function toOnline(state: { isConnected: boolean | null; isInternetReachable?: bo
   return null;
 }
 
+function permissionOf(r: { granted: boolean; canAskAgain: boolean }): PermissionResult {
+  return r.granted ? "granted" : r.canAskAgain ? "denied" : "blocked";
+}
+
+/** GPS real (expo-location), solo en primer plano. */
+const gpsSource: FixSource = {
+  ensurePermission: async () => permissionOf(await Location.getForegroundPermissionsAsync()),
+  watch: async (onFix) =>
+    Location.watchPositionAsync(
+      { accuracy: Location.Accuracy.High, timeInterval: APP_CONFIG.captureIntervalMs, distanceInterval: 0 },
+      (loc) => onFix({ latitude: loc.coords.latitude, longitude: loc.coords.longitude,
+                       speedMps: loc.coords.speed, timestampMs: loc.timestamp }),
+    ),
+};
+
 /**
  * Estado y acciones de la app del conductor. Orden de cada captura:
  * lectura → contrato → SQLite → (después) sincronización.
@@ -73,12 +92,8 @@ export function useDriver() {
   const sync = useRef<SyncCoordinator | null>(null);
   const settingsRef = useRef<DriverSettings>(DEFAULT_SETTINGS);
   const onlineRef = useRef<boolean | null>(null);
-  const wantCapture = useRef(false);
-  const simulatedRef = useRef(false);
   const unknownSpeedRef = useRef(false);
-  const watcher = useRef<Location.LocationSubscription | null>(null);
-  const simTimer = useRef<ReturnType<typeof setInterval> | null>(null);
-  const simulator = useRef<RouteSimulator | null>(null);
+  const capture = useRef<CaptureController | null>(null);
   const appState = useRef<AppStateStatus | null | undefined>(AppState.currentState as AppStateStatus | null);
 
   const refresh = useCallback(async () => {
@@ -102,9 +117,61 @@ export function useDriver() {
       patch({ notice: `No se pudo sincronizar: ${String(err)}` });
     } finally {
       patch({ syncing: s.busy });
-      await refresh();
+      await refresh().catch(() => undefined);
     }
   }, [patch, refresh]);
+
+  /** Lectura aceptada por el inicio vigente: contrato → SQLite → sincronización. */
+  const handleFix = useCallback(async (fix: Fix, mode: CaptureMode) => {
+    const o = outbox.current;
+    if (!o) return;
+    const decision = buildSample({
+      eventId: Crypto.randomUUID(),            // una sola vez, antes de guardar
+      vehicleId: settingsRef.current.vehicleId,
+      timestampMs: fix.timestampMs,
+      latitude: fix.latitude,
+      longitude: fix.longitude,
+      speedMps: fix.speedMps,
+    });
+    const row = await o.record(decision, mode === "simulated");   // primero SQLite
+    patch({
+      lastFix: {
+        eventId: row.event_id, capturedAt: row.captured_at, lat: row.lat, lon: row.lon,
+        speedKmh: row.speed_kmh, skippedReason: decision.kind === "skipped" ? decision.reason : null,
+        simulated: mode === "simulated",
+      },
+    });
+    await refresh();
+    if (decision.kind === "event") void runSync("capture");
+  }, [patch, refresh, runSync]);
+
+  // Referencia estable para el controlador (se crea una sola vez).
+  const handleFixRef = useRef(handleFix);
+  handleFixRef.current = handleFix;
+
+  // -- controlador de captura (uno por montaje) ---------------------------------------
+  useEffect(() => {
+    let simulator = new RouteSimulator(0);
+    const simulated: FixSource = {
+      ensurePermission: async () => "granted",
+      watch: (onFix) => {
+        simulator = new RouteSimulator(unknownSpeedRef.current ? 6 : 0);
+        return intervalSource(() => simulator.next(Date.now(), APP_CONFIG.captureIntervalMs),
+                              APP_CONFIG.captureIntervalMs).watch(onFix);
+      },
+    };
+    const controller = new CaptureController({ gps: gpsSource, simulated }, {
+      onStatus: (status) => patch({ capture: status }),
+      onPermission: (permission) => patch({ permission }),
+      onFix: (fix, mode) => handleFixRef.current(fix, mode),
+      onError: (message) => patch({ notice: message }),
+    });
+    capture.current = controller;
+    return () => {
+      controller.dispose();          // ninguna suscripción sigue viva tras desmontar
+      capture.current = null;
+    };
+  }, [patch]);
 
   // -- inicio: base, migraciones, recuperación y primera sincronización --------------
   useEffect(() => {
@@ -123,7 +190,7 @@ export function useDriver() {
           Date.now,
           APP_CONFIG.sync,
           () => onlineRef.current,
-          () => void refresh(),
+          () => void refresh().catch(() => undefined),
         );
         const recovered = await sync.current.start();
         const perm = await Location.getForegroundPermissionsAsync();
@@ -137,7 +204,7 @@ export function useDriver() {
         await refresh();
         void runSync("open");
       } catch (err) {
-        patch({ fatalError: `No se pudo abrir la base local: ${String(err)}` });
+        if (!cancelled) patch({ fatalError: `No se pudo abrir la base local: ${String(err)}` });
       }
     })();
     return () => {
@@ -164,110 +231,29 @@ export function useDriver() {
     return () => clearInterval(timer);
   }, [runSync]);
 
-  // -- captura ---------------------------------------------------------------------
-  const handleFix = useCallback(async (fix: { latitude: number; longitude: number; speedMps: number | null;
-                                              timestampMs: number }, simulated: boolean) => {
-    const o = outbox.current;
-    if (!o) return;
-    const decision = buildSample({
-      eventId: Crypto.randomUUID(),            // una sola vez, antes de guardar
-      vehicleId: settingsRef.current.vehicleId,
-      timestampMs: fix.timestampMs,
-      latitude: fix.latitude,
-      longitude: fix.longitude,
-      speedMps: fix.speedMps,
-    });
-    try {
-      const row = await o.record(decision, simulated);   // primero SQLite
-      patch({
-        lastFix: {
-          eventId: row.event_id, capturedAt: row.captured_at, lat: row.lat, lon: row.lon,
-          speedKmh: row.speed_kmh, skippedReason: decision.kind === "skipped" ? decision.reason : null,
-          simulated,
-        },
-      });
-      await refresh();
-      if (decision.kind === "event") void runSync("capture");
-    } catch (err) {
-      patch({ notice: `No se pudo guardar la posición: ${String(err)}` });
-    }
-  }, [patch, refresh, runSync]);
-
-  const stopSources = useCallback(() => {
-    watcher.current?.remove();
-    watcher.current = null;
-    if (simTimer.current) clearInterval(simTimer.current);
-    simTimer.current = null;
-  }, []);
-
-  const startSources = useCallback(async () => {
-    stopSources();
-    if (simulatedRef.current) {
-      simulator.current = new RouteSimulator(unknownSpeedRef.current ? 6 : 0);
-      const tick = () => {
-        const f = simulator.current!.next(Date.now(), APP_CONFIG.captureIntervalMs);
-        void handleFix(f, true);
-      };
-      tick();
-      simTimer.current = setInterval(tick, APP_CONFIG.captureIntervalMs);
-      return true;
-    }
-    const perm = await Location.getForegroundPermissionsAsync();
-    if (!perm.granted) {
-      patch({ permission: perm.canAskAgain ? "denied" : "blocked",
-              notice: "Sin permiso de ubicación: concédelo o usa el modo simulado" });
-      return false;
-    }
-    watcher.current = await Location.watchPositionAsync(
-      { accuracy: Location.Accuracy.High, timeInterval: APP_CONFIG.captureIntervalMs, distanceInterval: 0 },
-      (loc) => void handleFix({ latitude: loc.coords.latitude, longitude: loc.coords.longitude,
-                                speedMps: loc.coords.speed, timestampMs: loc.timestamp }, false),
-    );
-    return true;
-  }, [handleFix, patch, stopSources]);
-
-  const startCapture = useCallback(async () => {
-    const v = normalizeVehicleId(settingsRef.current.vehicleId);
-    if (!v.ok) {
-      patch({ notice: v.error });
-      return;
-    }
-    wantCapture.current = true;
-    const started = await startSources();
-    if (!started) wantCapture.current = false;
-    patch({ capture: started ? "capturing" : "stopped" });
-  }, [patch, startSources]);
-
-  const stopCapture = useCallback(() => {
-    wantCapture.current = false;
-    stopSources();
-    patch({ capture: "stopped" });
-  }, [patch, stopSources]);
-
   // -- segundo plano: la captura se pausa; al volver se reanuda ----------------------
   useEffect(() => {
     const sub = AppState.addEventListener("change", (next) => {
       const prev = appState.current;
       appState.current = next;
       if (next !== "active" && prev === "active") {
-        stopSources();
-        if (wantCapture.current) patch({ capture: "paused" });
+        capture.current?.background();
       } else if (next === "active" && prev !== "active") {
-        if (wantCapture.current) {
-          void startSources().then((ok) => patch({ capture: ok ? "capturing" : "stopped" }));
-        }
+        void capture.current?.foregrounded();
         void runSync("open");
       }
     });
     return () => sub.remove();
-  }, [patch, runSync, startSources, stopSources]);
-
-  useEffect(() => () => stopSources(), [stopSources]);
+  }, [runSync]);
 
   // -- acciones ------------------------------------------------------------------------
   const requestPermission = useCallback(async () => {
-    const r = await Location.requestForegroundPermissionsAsync();
-    patch({ permission: r.granted ? "granted" : r.canAskAgain ? "denied" : "blocked" });
+    try {
+      const r = await Location.requestForegroundPermissionsAsync();
+      patch({ permission: permissionOf(r) });
+    } catch (err) {
+      patch({ notice: `No se pudo solicitar el permiso: ${String(err)}` });
+    }
   }, [patch]);
 
   const saveSettings = useCallback(async (apiUrl: string, vehicleId: string) => {
@@ -276,32 +262,43 @@ export function useDriver() {
     const vehicle = normalizeVehicleId(vehicleId);
     if (!vehicle.ok) return vehicle.error;
     const next = { apiUrl: url.value, vehicleId: vehicle.value };
-    await store.current?.save(next);
+    try {
+      await store.current?.save(next);
+    } catch (err) {
+      return `No se pudo guardar la configuración: ${String(err)}`;
+    }
     settingsRef.current = next;     // los eventos ya guardados conservan su vehículo
     patch({ settings: next, notice: "Configuración guardada" });
     return null;
   }, [patch]);
 
-  const setSimulated = useCallback(async (value: boolean) => {
-    simulatedRef.current = value;
-    patch({ simulated: value });
-    if (wantCapture.current) {
-      const ok = await startSources();
-      patch({ capture: ok ? "capturing" : "stopped" });
+  const startCapture = useCallback(() => {
+    const v = normalizeVehicleId(settingsRef.current.vehicleId);
+    if (!v.ok) {
+      patch({ notice: v.error });
+      return;
     }
-  }, [patch, startSources]);
+    void capture.current?.start();
+  }, [patch]);
 
-  const setSimulateUnknownSpeed = useCallback(async (value: boolean) => {
+  const stopCapture = useCallback(() => capture.current?.stop(), []);
+
+  const setSimulated = useCallback((value: boolean) => {
+    patch({ simulated: value });
+    void capture.current?.setMode(value ? "simulated" : "gps");
+  }, [patch]);
+
+  const setSimulateUnknownSpeed = useCallback((value: boolean) => {
     unknownSpeedRef.current = value;
     patch({ simulateUnknownSpeed: value });
-    if (wantCapture.current && simulatedRef.current) await startSources();
-  }, [patch, startSources]);
+    if (capture.current?.currentMode === "simulated") void capture.current.restart();
+  }, [patch]);
 
   return {
     state,
     actions: {
       requestPermission, saveSettings, startCapture, stopCapture, setSimulated, setSimulateUnknownSpeed,
-      syncNow: () => runSync("manual"),
+      syncNow: () => void runSync("manual"),
       dismissNotice: () => patch({ notice: null }),
     },
   };

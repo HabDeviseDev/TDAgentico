@@ -675,6 +675,12 @@ Stack: Expo SDK 58, React Native 0.88, React 19.3, TypeScript 6.0, `expo-sqlite`
 
 - **Solo con la app abierta:** usa el permiso de ubicación "mientras se usa la app", que se pide de forma explícita. Hay botones de **Iniciar** y **Detener**. Los permisos de ubicación en segundo plano están bloqueados en `app.json`.
 - **En segundo plano la captura se pausa:** la interfaz muestra "En pausa". Al volver a la app se reanuda si estaba iniciada y se sincroniza. Las posiciones pendientes siguen en SQLite. Capturar con la app cerrada requeriría un servicio en primer plano o tareas de fondo; queda fuera de este MVP.
+- **Ciclo de vida de la captura** (`src/core/capture.ts`, `CaptureController`): crear la suscripción del GPS es asíncrono (permiso y arranque del proveedor). Cada inicio recibe una **generación**, y detener, pasar a segundo plano, cambiar entre GPS y simulación, otro inicio o desmontar la pantalla la incrementan:
+  - Un inicio anulado no cambia el estado visible.
+  - Si su suscripción termina de crearse después, se elimina en el acto.
+  - Sus lecturas se descartan aunque la fuente siga entregando alguna.
+  - Solo el inicio vigente muestra "Capturando" y guarda lecturas. Las posiciones ya guardadas en SQLite no se tocan.
+  - Los errores al iniciar el GPS o al guardar una lectura se muestran como aviso y no dejan promesas rechazadas sin manejar.
 - **Modo simulado:** genera lecturas ficticias (m/s y hora) sobre un circuito de Bogotá, con paradas, sin GPS ni permiso. Pasan por la misma conversión y validación que las reales.
   - Se identifica con una franja naranja "MODO SIMULADO" y la etiqueta "Lectura simulada".
   - En SQLite quedan con `simulated = 1`. El contrato de ingesta no tiene ese campo: en el servidor solo se distinguen por el vehículo que elijas, por ejemplo `SIM-01`.
@@ -805,7 +811,9 @@ EAS entrega un enlace para descargar el APK. Instálalo en el teléfono, permiti
 
 **Desde GitHub Actions** (`.github/workflows/mobile.yml`):
 
-- El job `checks` corre en cada push o PR que toque la app: `npm ci` desde el lockfile, `npm run typecheck` y `npm test`.
+- El job `checks` corre en cada push o PR que toque la app o los workflows: `npm ci` desde el lockfile, `npm run typecheck` y `npm test`.
+  - Antes comprueba con `scripts/check_workflow_order.py` que ningún paso `run` use un directorio del repositorio antes de `actions/checkout`.
+  - Para revisarlo a mano: `python scripts/check_workflow_order.py .github/workflows/*.yml` (requiere PyYAML).
 - El job `android-build` solo corre a mano: *Actions → mobile → Run workflow*, con `build_android = true` y un perfil.
   - Requiere el secreto **`EXPO_TOKEN`**, un token de acceso de expo.dev (*Account settings → Access tokens*), guardado en *Settings → Secrets and variables → Actions*.
   - Requiere el `projectId` de `eas init` en `app.json`.
@@ -818,6 +826,15 @@ EAS entrega un enlace para descargar el APK. Instálalo en el teléfono, permiti
 cd services/mobile && npm run typecheck && npm test
 ```
 
+- `test/capture.test.ts`: **dobles** de GPS y simulación cuya suscripción se crea con demora controlada; la integración con la cola usa SQLite real. Cubre:
+  - Detener mientras se pide el permiso o se crea la suscripción.
+  - Pasar a segundo plano durante el inicio y volver.
+  - Cambiar de GPS a simulación mientras el GPS arranca.
+  - Inicios simultáneos y superpuestos.
+  - Desmontar durante el inicio.
+  - Suscripción liberada al detener, al pasar a segundo plano y al desmontar.
+  - Errores del GPS, permiso bloqueado y error al guardar, sin promesas rechazadas sin manejar.
+  - Que solo el inicio vigente guarde lecturas y que detener conserve lo ya guardado.
 - `test/contract.test.ts`: lógica pura, sin dobles. Conversión de m/s a km/h, velocidad desconocida que no se vuelve 0, rangos, fechas UTC, regla de `vehicle_id` igual que la ingesta, URL y simulador.
 - `test/queue.test.ts`: **SQLite real** (`node:sqlite`, archivo en disco) y un **doble** del endpoint de lotes (`test/fakeIngest.ts`). Cubre:
   - Cola que sobrevive a cerrar y reabrir la base, y migraciones idempotentes.
@@ -1064,7 +1081,7 @@ docker compose start kafka
 
 - **Sin prueba en un dispositivo:** la app no se ejecutó en un teléfono ni en un emulador Android, porque este entorno no tiene ninguno. Sí se verificó:
   - Tipos.
-  - 42 pruebas de la lógica con SQLite real.
+  - 55 pruebas de la lógica (42 de cola y contrato con SQLite real, y 13 del ciclo de vida de la captura).
   - El bundle de Android (`expo export`, 682 módulos).
   - La configuración de Expo con sus plugins.
   - La compatibilidad de dependencias con el SDK 58.
