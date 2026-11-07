@@ -19,6 +19,7 @@ COPY pytest.ini .
 COPY contracts ./contracts
 COPY services ./services
 COPY scripts ./scripts
+COPY loadtest ./loadtest
 COPY tests ./tests
 
 ENTRYPOINT ["pytest"]

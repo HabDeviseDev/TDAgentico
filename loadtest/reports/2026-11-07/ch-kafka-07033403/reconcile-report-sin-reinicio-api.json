@@ -1,0 +1,439 @@
+{
+  "run_id": "ch-kafka-07033403",
+  "generated_at": "2026-11-07T03:40:24.590169+00:00",
+  "git_commit": "b7cdc62",
+  "params": {
+    "mode": "single",
+    "vehicles": 30,
+    "rate": 10.0,
+    "duration_s": 60,
+    "seed": 1,
+    "iterations": 600,
+    "batch_size": null,
+    "planned_requests": 600
+  },
+  "planned": {
+    "counts": {
+      "new": 510,
+      "dup": 60,
+      "invalid": 30
+    },
+    "unique_identities": 510
+  },
+  "executed": {
+    "new": {
+      "confirmed": 360,
+      "sent": 492,
+      "ambiguous": 132,
+      "not_sent": 18
+    },
+    "invalid": {
+      "expected_rejection": 29,
+      "sent": 29,
+      "not_sent": 1
+    },
+    "dup": {
+      "confirmed": 42,
+      "sent": 58,
+      "ambiguous": 16,
+      "not_sent": 2
+    }
+  },
+  "result_files": [
+    "k6-points-ingest.json",
+    "k6-points-resend.json"
+  ],
+  "identities": {
+    "identities": 540,
+    "confirmed": 360,
+    "ambiguous": 132,
+    "ambiguous_persisted": 0,
+    "invalid": 30,
+    "not_sent": 18,
+    "unexpected": 0,
+    "persisted_ok": 360,
+    "vehicles_checked": 30
+  },
+  "ambiguous": {
+    "count": 132,
+    "persisted": 0,
+    "not_persisted": 132,
+    "items": [
+      {
+        "event_id": "2a8af43a-8d8b-4293-a426-d4ce2cd8d93d",
+        "persisted": false,
+        "seqs": [
+          423
+        ]
+      },
+      {
+        "event_id": "3281c1a3-a656-499f-a8f7-96cf2b8fbac1",
+        "persisted": false,
+        "seqs": [
+          424
+        ]
+      },
+      {
+        "event_id": "818cbd10-6357-4f3b-9777-a923e0d3dc21",
+        "persisted": false,
+        "seqs": [
+          426
+        ]
+      },
+      {
+        "event_id": "cacc4d4c-3e82-4a37-a6f0-106946d2f999",
+        "persisted": false,
+        "seqs": [
+          427
+        ]
+      },
+      {
+        "event_id": "d86bf87a-4a94-47af-a4db-69fd504466c7",
+        "persisted": false,
+        "seqs": [
+          428
+        ]
+      },
+      {
+        "event_id": "4918681b-3b05-4b25-82d8-37574bf2867d",
+        "persisted": false,
+        "seqs": [
+          429
+        ]
+      },
+      {
+        "event_id": "14a840e9-b0ee-4fd8-848d-719280beef45",
+        "persisted": false,
+        "seqs": [
+          431
+        ]
+      },
+      {
+        "event_id": "d3a27476-b98a-473c-8df1-30e87e65bc10",
+        "persisted": false,
+        "seqs": [
+          432
+        ]
+      },
+      {
+        "event_id": "2d9b2aff-70f9-4664-9707-13a34eed755c",
+        "persisted": false,
+        "seqs": [
+          433
+        ]
+      },
+      {
+        "event_id": "3f08d78f-ae87-46c6-82ea-ad88b20bb1ff",
+        "persisted": false,
+        "seqs": [
+          434
+        ]
+      },
+      {
+        "event_id": "325e4859-ab34-4199-b531-0d807fba8285",
+        "persisted": false,
+        "seqs": [
+          435
+        ]
+      },
+      {
+        "event_id": "c3b07c8a-0f62-49ca-91a8-cb7213f2efb2",
+        "persisted": false,
+        "seqs": [
+          437
+        ]
+      },
+      {
+        "event_id": "7adc44fd-668c-484c-be3c-348e7cfa7aa5",
+        "persisted": false,
+        "seqs": [
+          438
+        ]
+      },
+      {
+        "event_id": "64ce9aa6-049e-45ce-92b5-970392836c31",
+        "persisted": false,
+        "seqs": [
+          439
+        ]
+      },
+      {
+        "event_id": "490154d9-87ce-414c-8a7f-16bee967e3d4",
+        "persisted": false,
+        "seqs": [
+          440
+        ]
+      },
+      {
+        "event_id": "7d4b37f1-3bf6-48b3-aecc-f885759f4fbb",
+        "persisted": false,
+        "seqs": [
+          441
+        ]
+      },
+      {
+        "event_id": "eadf16a2-7083-47b4-a27d-711422938749",
+        "persisted": false,
+        "seqs": [
+          442
+        ]
+      },
+      {
+        "event_id": "ec421405-55fa-41f9-9b5e-9a7469d85a92",
+        "persisted": false,
+        "seqs": [
+          443
+        ]
+      },
+      {
+        "event_id": "c15a54f8-9fb3-4197-8185-11134ebffb3d",
+        "persisted": false,
+        "seqs": [
+          444
+        ]
+      },
+      {
+        "event_id": "e9773e8f-e5fa-44c9-bd53-c93123a07873",
+        "persisted": false,
+        "seqs": [
+          445
+        ]
+      },
+      {
+        "event_id": "586f3387-d20c-4037-af55-4bf105ecda6b",
+        "persisted": false,
+        "seqs": [
+          446
+        ]
+      },
+      {
+        "event_id": "eba8b538-f1bb-48f4-a793-5d3629fb5293",
+        "persisted": false,
+        "seqs": [
+          447
+        ]
+      },
+      {
+        "event_id": "9d4216a2-e273-4e27-be9b-9cc36aac86f1",
+        "persisted": false,
+        "seqs": [
+          448
+        ]
+      },
+      {
+        "event_id": "b9a30d67-c517-486b-8df5-fa3b05d41be0",
+        "persisted": false,
+        "seqs": [
+          449
+        ]
+      },
+      {
+        "event_id": "4a28b5a3-2e6e-488a-8f8b-1c04b38e3bc1",
+        "persisted": false,
+        "seqs": [
+          450
+        ]
+      },
+      {
+        "event_id": "86806122-d4ae-4a45-8875-9133bd60a443",
+        "persisted": false,
+        "seqs": [
+          451
+        ]
+      },
+      {
+        "event_id": "fc7dc66f-ee27-4ef9-a65f-fd6574c50427",
+        "persisted": false,
+        "seqs": [
+          453
+        ]
+      },
+      {
+        "event_id": "6f8171e7-ad49-4d4b-8fba-c80a1505734f",
+        "persisted": false,
+        "seqs": [
+          454
+        ]
+      },
+      {
+        "event_id": "07f82dec-081c-47ad-8207-a134216c8295",
+        "persisted": false,
+        "seqs": [
+          456
+        ]
+      },
+      {
+        "event_id": "d5f92d64-13da-4b60-90fa-a7fd89b15fce",
+        "persisted": false,
+        "seqs": [
+          458
+        ]
+      },
+      {
+        "event_id": "cf9bc57d-27f8-4393-bbda-8c71742158b7",
+        "persisted": false,
+        "seqs": [
+          459
+        ]
+      },
+      {
+        "event_id": "d2556a1f-7b3e-4d23-8d08-2b62ebd62a10",
+        "persisted": false,
+        "seqs": [
+          460
+        ]
+      },
+      {
+        "event_id": "91d052fb-6473-4b15-a81f-22288e1da7e1",
+        "persisted": false,
+        "seqs": [
+          462
+        ]
+      },
+      {
+        "event_id": "3a018bdc-78a9-4a11-bd3c-1f72405038d8",
+        "persisted": false,
+        "seqs": [
+          463
+        ]
+      },
+      {
+        "event_id": "7553bfcb-75a3-4857-9f49-85dec7e2b5e4",
+        "persisted": false,
+        "seqs": [
+          464
+        ]
+      },
+      {
+        "event_id": "901fe2ac-f686-4926-b8aa-63cea2d24fbe",
+        "persisted": false,
+        "seqs": [
+          465
+        ]
+      },
+      {
+        "event_id": "2ee9f646-106f-449f-b930-7101aadf34d0",
+        "persisted": false,
+        "seqs": [
+          466
+        ]
+      },
+      {
+        "event_id": "852e1218-f65c-4568-a172-86fa1b3718cf",
+        "persisted": false,
+        "seqs": [
+          467
+        ]
+      },
+      {
+        "event_id": "cd2cb206-989d-4521-926f-b19df8506ccb",
+        "persisted": false,
+        "seqs": [
+          468
+        ]
+      },
+      {
+        "event_id": "3c4d5411-49d1-49d7-b791-5c3c4ec062ff",
+        "persisted": false,
+        "seqs": [
+          469
+        ]
+      },
+      {
+        "event_id": "322954fa-2a3a-4e9e-b9cc-ddcb1339176d",
+        "persisted": false,
+        "seqs": [
+          471
+        ]
+      },
+      {
+        "event_id": "7db4069d-3cf2-4c06-93f1-d0391272f879",
+        "persisted": false,
+        "seqs": [
+          472
+        ]
+      },
+      {
+        "event_id": "3bb4a5df-5a75-4bab-a22e-e225e3222717",
+        "persisted": false,
+        "seqs": [
+          474
+        ]
+      },
+      {
+        "event_id": "36efc472-3879-4f20-bbf9-f30c21aab321",
+        "persisted": false,
+        "seqs": [
+          475
+        ]
+      },
+      {
+        "event_id": "99656b0e-5daf-4e03-8a7c-bf30af5eee3d",
+        "persisted": false,
+        "seqs": [
+          476
+        ]
+      },
+      {
+        "event_id": "d7bfd254-24aa-4289-951a-256c5f210389",
+        "persisted": false,
+        "seqs": [
+          477
+        ]
+      },
+      {
+        "event_id": "b13eebcc-c57f-43f7-ab69-fc22a67088c2",
+        "persisted": false,
+        "seqs": [
+          478
+        ]
+      },
+      {
+        "event_id": "e28bdfe9-f8a4-43ad-b2b5-149afc02b298",
+        "persisted": false,
+        "seqs": [
+          479
+        ]
+      },
+      {
+        "event_id": "88da68c5-fe61-4e45-b7d5-8497ec023c20",
+        "persisted": false,
+        "seqs": [
+          480
+        ]
+      },
+      {
+        "event_id": "6a8079d2-ef9a-40b0-af11-45f026fae871",
+        "persisted": false,
+        "seqs": [
+          481
+        ]
+      }
+    ]
+  },
+  "dlq": {
+    "checked": true,
+    "scanned": 0,
+    "hits": []
+  },
+  "wait": {
+    "seconds": 0.3,
+    "max_wait_s": 180.0,
+    "polls": [
+      {
+        "t": 0.3,
+        "missing_confirmed": 0,
+        "lag": 0
+      }
+    ],
+    "final_lag": 0
+  },
+  "persistence_latency_ms": {
+    "p50": 710.637,
+    "p95": 1617.304,
+    "p99": 1986.059
+  },
+  "discrepancies": [],
+  "discrepancy_count": 0,
+  "ok": true
+}

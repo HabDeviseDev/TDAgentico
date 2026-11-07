@@ -1,0 +1,59 @@
+{
+  "run_id": "ch-consumer-07031717",
+  "mode": "single",
+  "vehicles": 30,
+  "rate": 10.0,
+  "duration_s": 60,
+  "seed": 1,
+  "iterations": 600,
+  "batch_size": null,
+  "planned_requests": 600,
+  "planned_counts": {
+    "new": 510,
+    "dup": 60,
+    "invalid": 30
+  },
+  "planned_unique_identities": 510,
+  "vehicle_ids": [
+    "LT-ch-consumer-07031717-0001",
+    "LT-ch-consumer-07031717-0002",
+    "LT-ch-consumer-07031717-0003",
+    "LT-ch-consumer-07031717-0004",
+    "LT-ch-consumer-07031717-0005",
+    "LT-ch-consumer-07031717-0006",
+    "LT-ch-consumer-07031717-0007",
+    "LT-ch-consumer-07031717-0008",
+    "LT-ch-consumer-07031717-0009",
+    "LT-ch-consumer-07031717-0010",
+    "LT-ch-consumer-07031717-0011",
+    "LT-ch-consumer-07031717-0012",
+    "LT-ch-consumer-07031717-0013",
+    "LT-ch-consumer-07031717-0014",
+    "LT-ch-consumer-07031717-0015",
+    "LT-ch-consumer-07031717-0016",
+    "LT-ch-consumer-07031717-0017",
+    "LT-ch-consumer-07031717-0018",
+    "LT-ch-consumer-07031717-0019",
+    "LT-ch-consumer-07031717-0020",
+    "LT-ch-consumer-07031717-0021",
+    "LT-ch-consumer-07031717-0022",
+    "LT-ch-consumer-07031717-0023",
+    "LT-ch-consumer-07031717-0024",
+    "LT-ch-consumer-07031717-0025",
+    "LT-ch-consumer-07031717-0026",
+    "LT-ch-consumer-07031717-0027",
+    "LT-ch-consumer-07031717-0028",
+    "LT-ch-consumer-07031717-0029",
+    "LT-ch-consumer-07031717-0030"
+  ],
+  "invalid_rule": "lat fuera de rango (95.0 > 90)",
+  "block": {
+    "size": 20,
+    "quota": {
+      "new": 17,
+      "dup": 2,
+      "invalid": 1
+    }
+  },
+  "prepared_at": "2026-11-07T03:21:11.791548+00:00"
+}

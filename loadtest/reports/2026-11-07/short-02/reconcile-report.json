@@ -1,0 +1,404 @@
+{
+  "run_id": "short-02",
+  "generated_at": "2026-11-07T01:56:34.127815+00:00",
+  "git_commit": "b7cdc62",
+  "params": {
+    "mode": "single",
+    "vehicles": 20,
+    "rate": 10.0,
+    "duration_s": 30,
+    "seed": 7,
+    "iterations": 300,
+    "batch_size": null,
+    "planned_requests": 300
+  },
+  "planned": {
+    "counts": {
+      "new": 255,
+      "dup": 30,
+      "invalid": 15
+    },
+    "unique_identities": 255
+  },
+  "executed": {
+    "new": {
+      "ambiguous": 48,
+      "sent": 229,
+      "confirmed": 181,
+      "not_sent": 26
+    },
+    "invalid": {
+      "expected_rejection": 14,
+      "sent": 14,
+      "not_sent": 1
+    },
+    "dup": {
+      "ambiguous": 6,
+      "sent": 26,
+      "confirmed": 20,
+      "not_sent": 4
+    }
+  },
+  "result_files": [
+    "k6-points-ingest.json"
+  ],
+  "identities": {
+    "identities": 270,
+    "confirmed": 185,
+    "ambiguous": 44,
+    "ambiguous_persisted": 44,
+    "invalid": 15,
+    "not_sent": 26,
+    "unexpected": 0,
+    "persisted_ok": 185,
+    "vehicles_checked": 20
+  },
+  "ambiguous": {
+    "count": 44,
+    "persisted": 44,
+    "not_persisted": 0,
+    "items": [
+      {
+        "event_id": "6487e31e-f4cd-48a2-a762-b263cec90d33",
+        "persisted": true,
+        "seqs": [
+          0
+        ]
+      },
+      {
+        "event_id": "6c57a911-ea25-4906-bb4e-4b36adc07d5f",
+        "persisted": true,
+        "seqs": [
+          2
+        ]
+      },
+      {
+        "event_id": "7bf41366-5ade-47d5-a9e1-59af291cfc74",
+        "persisted": true,
+        "seqs": [
+          3
+        ]
+      },
+      {
+        "event_id": "446f7f48-f0f8-4db0-85ba-7adfd8038ce4",
+        "persisted": true,
+        "seqs": [
+          4
+        ]
+      },
+      {
+        "event_id": "bd431d45-7c14-41dc-afc7-a442b3c14e0d",
+        "persisted": true,
+        "seqs": [
+          5,
+          38
+        ]
+      },
+      {
+        "event_id": "021ebd0d-fca4-4e6c-9911-2bc94a82ecd2",
+        "persisted": true,
+        "seqs": [
+          6,
+          37,
+          274
+        ]
+      },
+      {
+        "event_id": "665c2de8-55ab-445b-8146-ff4a206c1f41",
+        "persisted": true,
+        "seqs": [
+          7
+        ]
+      },
+      {
+        "event_id": "39a6fe4d-bee7-4b49-8d9a-33c5a985df39",
+        "persisted": true,
+        "seqs": [
+          8,
+          19
+        ]
+      },
+      {
+        "event_id": "9a1e7ef9-ab62-4b1b-b21f-e4dabf82ae40",
+        "persisted": true,
+        "seqs": [
+          9
+        ]
+      },
+      {
+        "event_id": "f31f9516-f967-4e88-b071-a8f2bc9b52e1",
+        "persisted": true,
+        "seqs": [
+          10
+        ]
+      },
+      {
+        "event_id": "c039372c-4c98-42a3-8285-680b465bae97",
+        "persisted": true,
+        "seqs": [
+          11
+        ]
+      },
+      {
+        "event_id": "d5c8161d-b0ec-41c1-a824-9db2903030ba",
+        "persisted": true,
+        "seqs": [
+          12
+        ]
+      },
+      {
+        "event_id": "a6bae452-36c7-4778-a5dd-e410f30cfd96",
+        "persisted": true,
+        "seqs": [
+          13
+        ]
+      },
+      {
+        "event_id": "f3d0e743-1480-4a0c-a847-7439dd335f31",
+        "persisted": true,
+        "seqs": [
+          14
+        ]
+      },
+      {
+        "event_id": "8d4f3f80-92bc-49bc-a389-8e8aa09b879f",
+        "persisted": true,
+        "seqs": [
+          16
+        ]
+      },
+      {
+        "event_id": "dbdf752f-1bb9-4a97-92e5-8181d49bca80",
+        "persisted": true,
+        "seqs": [
+          20
+        ]
+      },
+      {
+        "event_id": "92eecd6e-9da3-4c53-8472-b1db6e2506f6",
+        "persisted": true,
+        "seqs": [
+          21
+        ]
+      },
+      {
+        "event_id": "da956a3e-e56f-41fd-af0b-3f15e4f4d13d",
+        "persisted": true,
+        "seqs": [
+          23
+        ]
+      },
+      {
+        "event_id": "fbed905f-e897-42ba-aa0f-aa6513b01abf",
+        "persisted": true,
+        "seqs": [
+          25
+        ]
+      },
+      {
+        "event_id": "10d887ce-90ad-4066-8080-4acbcb7d722c",
+        "persisted": true,
+        "seqs": [
+          26,
+          275
+        ]
+      },
+      {
+        "event_id": "b0560c31-539b-49b5-86ed-ea38b39c7ba0",
+        "persisted": true,
+        "seqs": [
+          27
+        ]
+      },
+      {
+        "event_id": "78a8e9df-8f3f-4679-a27b-741acf7f7fbd",
+        "persisted": true,
+        "seqs": [
+          28
+        ]
+      },
+      {
+        "event_id": "562fd0bf-50e2-4b90-a1d7-6d9d7d2c7f98",
+        "persisted": true,
+        "seqs": [
+          29
+        ]
+      },
+      {
+        "event_id": "5565291c-2693-49a0-9242-168772e1a504",
+        "persisted": true,
+        "seqs": [
+          30
+        ]
+      },
+      {
+        "event_id": "f1a584dd-85ca-4e77-b8fd-ca71573f58a4",
+        "persisted": true,
+        "seqs": [
+          31,
+          48
+        ]
+      },
+      {
+        "event_id": "7767ea42-b77f-431a-b9f4-698afe203720",
+        "persisted": true,
+        "seqs": [
+          32,
+          40
+        ]
+      },
+      {
+        "event_id": "76b8692a-753a-475a-a302-f30b89ddab60",
+        "persisted": true,
+        "seqs": [
+          33
+        ]
+      },
+      {
+        "event_id": "bc13fa66-7cf9-4e7d-9d4e-ca8e433fabac",
+        "persisted": true,
+        "seqs": [
+          34
+        ]
+      },
+      {
+        "event_id": "888a4b56-928d-4056-a271-36adc3aacabc",
+        "persisted": true,
+        "seqs": [
+          35
+        ]
+      },
+      {
+        "event_id": "954375eb-d4eb-4696-9127-fb8b435bd8bc",
+        "persisted": true,
+        "seqs": [
+          36
+        ]
+      },
+      {
+        "event_id": "14c019b8-2fd6-418f-951b-6dcf659e0690",
+        "persisted": true,
+        "seqs": [
+          39
+        ]
+      },
+      {
+        "event_id": "495b2032-657a-4864-98ac-ed967d962d03",
+        "persisted": true,
+        "seqs": [
+          41
+        ]
+      },
+      {
+        "event_id": "7910e046-e5c7-4142-9bb6-26d77915baf6",
+        "persisted": true,
+        "seqs": [
+          45
+        ]
+      },
+      {
+        "event_id": "76bde142-8f15-4681-9c39-8f7158d92232",
+        "persisted": true,
+        "seqs": [
+          46
+        ]
+      },
+      {
+        "event_id": "b5187c19-c8fb-4763-9206-2700dc71345c",
+        "persisted": true,
+        "seqs": [
+          47,
+          284
+        ]
+      },
+      {
+        "event_id": "147f156f-a6ad-4a21-b81e-cb83b2b05d23",
+        "persisted": true,
+        "seqs": [
+          49
+        ]
+      },
+      {
+        "event_id": "3dc4ff15-2217-4605-b692-78efb613aa28",
+        "persisted": true,
+        "seqs": [
+          50
+        ]
+      },
+      {
+        "event_id": "4e56dcd6-9776-42e8-a5b7-6ffa56aff526",
+        "persisted": true,
+        "seqs": [
+          51
+        ]
+      },
+      {
+        "event_id": "beb6d3da-e69b-4211-9492-ebf9aa330370",
+        "persisted": true,
+        "seqs": [
+          52
+        ]
+      },
+      {
+        "event_id": "0dbeb3b3-0402-44a7-a9b3-60ac2edbc123",
+        "persisted": true,
+        "seqs": [
+          53
+        ]
+      },
+      {
+        "event_id": "61224da1-2bd5-4a83-a953-96bc37705f2c",
+        "persisted": true,
+        "seqs": [
+          54
+        ]
+      },
+      {
+        "event_id": "accb36ac-8314-45a0-b784-d2672b6a414a",
+        "persisted": true,
+        "seqs": [
+          55
+        ]
+      },
+      {
+        "event_id": "8e62e25b-e4e9-4838-b43a-e7f7779d2936",
+        "persisted": true,
+        "seqs": [
+          56
+        ]
+      },
+      {
+        "event_id": "815a81ae-ee61-4beb-bcea-1d4615e0f5ff",
+        "persisted": true,
+        "seqs": [
+          57
+        ]
+      }
+    ]
+  },
+  "dlq": {
+    "checked": true,
+    "scanned": 17,
+    "hits": []
+  },
+  "wait": {
+    "seconds": 12.9,
+    "max_wait_s": 90.0,
+    "polls": [
+      {
+        "t": 12.9,
+        "missing_confirmed": 0,
+        "lag": 0
+      }
+    ],
+    "final_lag": 0
+  },
+  "persistence_latency_ms": {
+    "p50": 17028.621,
+    "p95": 23177.219,
+    "p99": 23199.963
+  },
+  "discrepancies": [],
+  "discrepancy_count": 0,
+  "ok": true
+}

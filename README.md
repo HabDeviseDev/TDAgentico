@@ -8,6 +8,7 @@ MVP de monitoreo de flotas.
 - **Etapa 3:** zonas críticas y alertas de detención dentro de ellas.
 - **Etapa 4:** agente operativo (LangChain) con chat en el portal y herramientas de solo lectura.
 - **Etapa 5:** app del conductor (React Native + Expo + SQLite) que funciona sin conexión e ingesta por lotes.
+- **Etapa 6:** pruebas de carga reproducibles (k6), reconciliación final y caos controlado.
 
 ```
 POST /v1/positions ──► FastAPI ──(acks=all)──► Kafka: fleet.positions.v1 ──► consumidor ──(1 transacción)──► TimescaleDB
@@ -67,6 +68,7 @@ Sin credencial todo lo demás funciona y el chat informa que el agente requiere 
 | `services/portal/` | SPA React + TypeScript (Vite, Leaflet) servida por nginx con proxy a la API |
 | `scripts/simulate.py` | Simulador de flota alrededor de Bogotá (solo biblioteca estándar) |
 | `scripts/demo_alerts.py` | Escenarios de demostración de alertas (solo biblioteca estándar) |
+| `loadtest/` | Carga y caos: `prepare.py` (conjunto de datos), `k6/` (escenarios), `reconcile.py` + `reconcile_lib.py` (reconciliación de solo lectura), `portal_probe.py`, `lt.sh` y `chaos.sh` (orquestación con Docker), `compose.chaos.yml`; resultados en `loadtest/runs/` (no versionados) |
 | `services/mobile/` | App del conductor (Expo 58, React Native 0.88, TypeScript): `src/core/` (contrato, cola SQLite, sincronización; sin React Native), `src/ui/` (hook de la app), `App.tsx` (pantalla), `test/` y `e2e/` |
 | `.github/workflows/mobile.yml` | CI de la app: tipos y pruebas; compilación Android con EAS manual |
 | `services/agent/fleet_agent/` | Agente operativo: `tools.py` (herramientas tipadas), `agent.py` (bucle y límites), `fleet_client.py` (HTTP de solo lectura), `breaker.py` (circuit breaker), `model.py` (proveedor), `main.py` (`POST /v1/chat`) |
@@ -960,6 +962,8 @@ docker compose --profile test run --rm --no-deps tests tests/unit -v
 | Prueba | Tipo | Qué comprueba |
 |---|---|---|
 | `tests/unit/test_api_kafka_errors.py` | Controlada (productor falso) | `503` cuando Kafka rechaza o no confirma a tiempo; `422` sin publicar |
+| `tests/unit/test_loadtest_prepare.py` | Lógica pura, sin dobles | Cuotas exactas 17/2/1 por bloque de 20, mayor resto en el último bloque, reproducibilidad con la semilla, reenvíos idénticos de un evento previo, eventos nuevos válidos según el contrato y únicos, vehículos estables, inválidos que fallan solo por la latitud, identidades únicas sin contar reenvíos, `run_id` válido, archivos generados |
+| `tests/unit/test_reconcile.py` | Instantáneas de BD construidas en la prueba (dobles) | Ejecución correcta; confirmado ausente; fila histórica duplicada; contenido distinto con tolerancia de `real`; `payload_hash` distinto; inválido persistido; fila desconocida; ambiguos persistidos o no (sin fallar); reenvío confirmado que cubre un original ambiguo; posición actual con desempate por `event_id`; persistido sin envío; lectura de la salida JSON de k6; percentiles |
 | `tests/unit/test_batch_ingest.py` | Controlada (productor falso) | Lote: resultado por evento con `index` y `event_id` (también inválidos, futuros o sin zona horaria); publicación parcial (error y timeout) en paralelo; reenvío con los mismos bytes; misma validación y publicación que el endpoint individual, que conserva `202`/`503`; límites de eventos y de bytes (también sin `Content-Length`); `400`/`422` por la forma del cuerpo |
 | `tests/acceptance/test_batch_ingestion.py` | Stack real | Lote con evento atrasado e inválidos; el atrasado entra al historial y la posición visible es la más reciente; reenvío del mismo lote sin duplicados; límites `413`/`422` |
 | `tests/unit/test_consumer_dlq.py` | Controlada (Kafka y BD falsos) | Orden DLQ confirmada → COMMIT → offset; si la DLQ falla (error o timeout) o la BD falla, no se confirma ningún offset |
@@ -999,6 +1003,233 @@ pytest -v
 ```
 
 Los fallos de la DLQ y la falta de ack de Kafka hacia la API se prueban solo de forma controlada, porque provocarlos con el stack real no es determinista. El `503` con el stack real se puede ver deteniendo Kafka (paso opcional, ver abajo).
+
+## Pruebas de carga y caos
+
+Todo corre con Docker; no hace falta instalar k6 ni Python en la PC. Usa la imagen `grafana/k6:2.3.0` y, para preparar datos y reconciliar, la imagen de pruebas `fleet-tests` (`docker compose --profile test build tests`).
+
+### Conjunto de datos y distribución
+
+`loadtest/prepare.py` genera **antes** de la carga todas las solicitudes de una ejecución (`loadtest/runs/<run_id>/dataset.json` y `meta.json`):
+
+- **Vehículos estables:** `LT-<run_id>-0001` … `LT-<run_id>-NNNN`; los eventos nuevos se reparten en ronda. El `run_id` aísla los datos de cada ejecución.
+- **Mezcla por cuotas, no por azar:** cada bloque de 20 solicitudes tiene exactamente **17 nuevos (85 %), 2 reenvíos (10 %) y 1 inválido (5 %)**. La semilla solo decide el orden dentro del bloque, qué evento previo se reenvía y las coordenadas. Un bloque final incompleto reparte sus cupos por el método del mayor resto.
+  - **Reenvío:** el cuerpo exacto (mismo `event_id` y contenido) de un evento nuevo que aparece antes en la secuencia.
+  - **Inválido:** `lat = 95.0`, que incumple solo la regla de rango de latitud, con un `event_id` propio.
+- **Coordenadas y fechas:** coordenadas válidas alrededor de Bogotá y fechas UTC con milisegundos, crecientes por vehículo y nunca en el futuro.
+- **Identidades únicas esperadas** = eventos nuevos; los reenvíos no suman.
+
+### Generador k6 y métricas
+
+- **Escenario principal** (`k6/ingest.js`, endpoint individual `POST /v1/positions`):
+  - Ejecutor `constant-arrival-rate`: controla solicitudes por segundo.
+  - Si los VUs no alcanzan, k6 registra `dropped_iterations`.
+  - Cada iteración usa el elemento `exec.scenario.iterationInTest` del conjunto, así ninguna secuencia se envía dos veces aunque haya concurrencia.
+- **Escenario de lotes** (`k6/batch.js`, `POST /v1/positions/batch`): cada iteración envía N elementos consecutivos y registra el resultado de cada evento, correlacionado por `index` y `event_id`.
+- **Clasificación de cada evento:**
+
+  | Resultado | Cuándo |
+  |---|---|
+  | `confirmed` | Evento válido con `202` o `accepted` |
+  | `expected_rejection` | Inválido con `422` o `rejected`. **Es un resultado esperado, no un error** |
+  | `ambiguous` | Timeout, error de conexión, `503`, `retryable` o resultado ausente. Pudo publicarse |
+  | `unexpected` | Cualquier otra combinación |
+
+- **Métricas:**
+
+  | Métrica | Qué mide |
+  |---|---|
+  | `lt_sent_new`, `lt_sent_dup`, `lt_sent_invalid` | Envíos por tipo |
+  | `lt_confirmed` | Recepciones confirmadas |
+  | `lt_expected_rejections` | Rechazos esperados |
+  | `lt_unexpected_failures` | Fallos inesperados |
+  | `lt_ambiguous` | Timeouts y respuestas ambiguas |
+  | `lt_latency` | Latencia por tipo (p50, p95, p99) |
+  | `iterations.rate` | Tasa real alcanzada |
+  | `dropped_iterations` | Iteraciones descartadas |
+
+  Además, un punto `lt_result` por evento, con su secuencia y resultado, en la salida JSON de k6 (`k6-points-*.json`). k6 serializa esa salida, así que es segura con concurrencia.
+- **Umbrales configurables** (objetivos de la prueba local):
+
+  | Variable | Valor | Objetivo |
+  |---|---|---|
+  | `P95_MS` | 500 | Latencia p95 de eventos nuevos |
+  | `P99_MS` | 1500 | Latencia p99 de eventos nuevos |
+  | `MAX_UNEXPECTED` | 0 | Fallos inesperados |
+  | `MAX_AMBIGUOUS` | 0 | Respuestas ambiguas |
+  | `MAX_DROPPED` | 0 | Iteraciones descartadas |
+
+  Si alguno no se cumple, k6 termina con código 99. La reconciliación se ejecuta igual.
+
+### Reconciliación (solo lectura)
+
+`loadtest/reconcile.py` cruza el conjunto preparado con los resultados de k6 y lee TimescaleDB y Kafka. La sesión de PostgreSQL es de solo lectura (`default_transaction_read_only=on`), no confirma offsets y filtra por los vehículos de la ejecución.
+
+- **Espera acotada:** espera a que estén todas las identidades confirmadas **y** el lag sea 0, o a que venza `--max-wait`. **Un lag cero no basta:** las comprobaciones se hacen siempre sobre el contenido de la BD.
+- **Comprobaciones:**
+  - Cada identidad confirmada está en `ingested_events` y en `position_history`, una sola fila, con el contenido enviado: vehículo, fecha, coordenadas, velocidad (con tolerancia de la columna `real`) y `payload_hash` calculado con el mismo contrato.
+  - Los inválidos no se persistieron.
+  - No hay filas desconocidas ni persistidas sin un envío registrado.
+  - La posición actual de cada vehículo es el mayor `(captured_at, event_id)` de su historial.
+  - No hay conflictos de `event_id`.
+  - La DLQ se recorre desde el principio, sin unirse a un grupo, buscando mensajes de la ejecución.
+- **Ambiguos aparte:** los eventos con timeout o `503` se informan por separado, persistidos o no, y no cuentan como discrepancia. `--emit-resend` escribe `dataset-resend.json` con su cuerpo exacto para reenviarlos.
+- **Salida:**
+  - `manifest.csv`: una fila por solicitud con secuencia, tipo, `event_id`, vehículo, fecha, resultado consolidado, intentos y estados, si se persistió y el cuerpo.
+  - `reconcile-report.json` y `.md`.
+  - Código de salida: 0 sin discrepancias, 1 con discrepancias, 2 si no pudo completar.
+
+### Comandos
+
+Las variables de umbral, `PRE_VUS`, `MAX_VUS` y `REQUEST_TIMEOUT` se pasan como variables de entorno. `API_URL` es **obligatoria**: para un entorno externo hay que dar su URL y una red de Docker que la alcance (`NETWORK=host`, por ejemplo).
+
+1. Construye la imagen de herramientas:
+
+   ```bash
+   docker compose --profile test build tests
+   ```
+
+2. Prepara datos sin cargar:
+
+   ```bash
+   loadtest/lt.sh prepare demo-01 --vehicles 20 --rate 10 --duration 30 --seed 7
+   ```
+
+3. Prueba corta: 20 vehículos, 10/s, 30 s.
+
+   ```bash
+   API_URL=http://api:8000 loadtest/lt.sh load short-03 20 10 30 7
+   ```
+
+4. Carga de cientos de vehículos: 300 vehículos, 50/s, 120 s.
+
+   ```bash
+   API_URL=http://api:8000 loadtest/lt.sh load load-300 300 50 120 11
+   ```
+
+5. Lotes: 100 vehículos, 2 lotes/s de 25 eventos, 60 s.
+
+   ```bash
+   API_URL=http://api:8000 loadtest/lt.sh batch batch-100 100 2 60 13 25
+   ```
+
+6. Reconcilia (espera máxima de 180 s):
+
+   ```bash
+   loadtest/lt.sh reconcile load-300 180
+   ```
+
+7. Consulta los reportes:
+
+   ```bash
+   cat loadtest/runs/load-300/reconcile-report.md loadtest/runs/load-300/manifest.csv
+   ```
+
+8. Mide el tiempo hasta verlo en el portal:
+
+   ```bash
+   API_URL=http://api:8000 loadtest/lt.sh probe short-03 10
+   ```
+
+Cada ejecución guarda:
+
+- `env-before.json` y `env-after.json`: commit, cambios sin confirmar, versión de k6 y de Docker, CPU y memoria de Docker, proyecto, URL y parámetros.
+- `stats-*.txt`: `docker stats`.
+- `k6-summary-*.json`, `k6-exit-*.txt` y `k6-wall-*.json`: duración.
+
+### Caos controlado
+
+`loadtest/chaos.sh` corre los escenarios en un **proyecto Compose aparte** (`-p fleet-chaos` + `loadtest/compose.chaos.yml`):
+
+- Volúmenes propios: `fleet-chaos_kafka-data` y `fleet-chaos_tsdb-data`.
+- Sin puertos publicados.
+- Nunca usa `-v` ni borra datos.
+
+Cada escenario:
+
+1. Espera a que la carga empiece de verdad (primer resultado de k6).
+2. Inyecta la falla a los 15 s y la mantiene ~25 s.
+3. Recupera el servicio y reconcilia.
+4. Restaura los servicios al salir (`trap`), aunque falle una comprobación.
+
+Todas las esperas tienen tiempo máximo.
+
+```bash
+loadtest/chaos.sh up
+```
+
+```bash
+loadtest/chaos.sh consumer
+```
+
+```bash
+loadtest/chaos.sh db
+```
+
+```bash
+loadtest/chaos.sh kafka
+```
+
+```bash
+loadtest/chaos.sh down
+```
+
+- `up` levanta el proyecto de caos; `down` lo detiene y conserva sus volúmenes.
+- `consumer`, `db` y `kafka` son los escenarios A, B y C.
+- Variables: `VEHICLES` (30), `RATE` (10), `DURATION` (60), `FAULT_AT` (15), `FAULT_FOR` (25), `MAX_WAIT` (180), `CHAOS_KAFKA_HEAP` (`-Xmx1G -Xms1G`).
+- En el escenario C, si el reenvío sigue recibiendo `503`, el script termina con código 3 e imprime la intervención pendiente.
+
+**En este equipo los dos stacks no caben a la vez** (Docker con 4 CPU y 3,8 GB). Con ambos levantados, el Kafka de caos no terminó de arrancar en 14 min y Docker no pudo detener contenedores. Para los escenarios se detuvo el stack principal (`docker compose stop`, sin borrar nada) y se volvió a levantar al terminar.
+
+Limpieza del proyecto de caos (solo borra **sus** volúmenes, no los del stack principal):
+
+```bash
+docker compose -p fleet-chaos -f docker-compose.yml -f loadtest/compose.chaos.yml down -v
+```
+
+### Resultados observados (2026-11-07, commit `b7cdc62` con estos cambios sin confirmar)
+
+Entorno: Docker 29.9.2 en Windows, 4 CPU y 3,78 GiB para Docker, k6 v2.3.0. Los reportes de cada ejecución (reconciliación, resumen de k6, entorno y parámetros) están en `loadtest/reports/2026-11-07/`.
+
+La latencia es la de **recepción en la API** (POST hasta el 202).
+
+| Ejecución | Parámetros | Enviados (nuevos/reenvíos/inválidos) | Resultado | Tasa | Descartadas | Latencia p50 / p95 / p99 | Reconciliación | Tiempo hasta persistencia p50 / p95 |
+|---|---|---|---|---|---|---|---|---|
+| `short-02` (en frío) | 20 veh, 10/s, 30 s | 229 / 26 / 14 | 201 confirmados, 14 rechazados, **54 ambiguos (503)**, 0 inesperados | 8,97/s | 32 | 35 ms / 5,10 s / 5,36 s | OK: 185 identidades; las **44 ambiguas estaban persistidas** | 17,0 s / 23,2 s |
+| `short-03` (en caliente) | 20 veh, 10/s, 30 s | 254 / 30 / 15 | 284 confirmados, 15 rechazados, 0 ambiguos, 0 inesperados | 9,96/s | 2 | 8,7 ms / 209 ms / 1,13 s | OK: 254 identidades | 0,70 s / 1,23 s |
+| `load-300` | 300 veh, 50/s, 120 s | 5.009 / 588 / 295 | 5.522 confirmados, 295 rechazados, **75 ambiguos**, 0 inesperados | 48,73/s | 109 | 31 ms / 1,76 s / 5,01 s | OK: 4.950 identidades, 59 ambiguas todas persistidas, 300 inválidas no persistidas, 300 vehículos con la posición actual correcta | 0,85 s / 1,76 s |
+| `batch-100` | 100 veh, 2 lotes/s de 25, 60 s | 2.550 / 300 / 150 | 2.850 confirmados, 150 rechazados, 0 ambiguos, 0 inesperados | 2/s (120 lotes) | 0 | 22 ms / 82 ms / 109 ms por lote | OK: 2.550 identidades | 0,58 s / 1,19 s |
+
+Cumplieron los umbrales objetivo **`batch-100`** y `short-03`, este salvo por 2 iteraciones descartadas. `short-02` y `load-300` **no los cumplieron**, y los resultados se conservan tal como se observaron:
+
+- **`short-02`:** todos los 503 fueron en los primeros ~10 s, tras un rato sin tráfico. Kafka tardó más que `KAFKA_SEND_TIMEOUT_S` (5 s) en confirmar, pero publicó los mensajes después.
+- **`load-300`:** el ritmo fue estable (~48/s) salvo entre t+40 s y t+55 s. En esa ventana Kafka dejó de responder: el consumidor registró `SESSTMOUT` (más de 10 s sin respuesta del coordinador), la API agotó el tiempo en 75 publicaciones y Kafka se quedó a ~280 % de CPU. Todas las identidades confirmadas y todas las ambiguas terminaron persistidas, sin duplicados. Los 77 s de espera se debieron a que las consultas de lag de la reconciliación vencían mientras Kafka se recuperaba; los datos ya estaban completos en la primera consulta.
+- **`short-01`:** no produjo datos. k6 no pudo escribir en la carpeta de la ejecución (permisos); se corrigió con `--user 0`.
+
+El **tiempo hasta persistencia** va del primer 202 a `position_history.ingested_at`. Los dos relojes son de la misma VM de Docker.
+
+**Tiempo hasta verlo en el portal** (`portal_probe.py`, 10 eventos de sonda, `short-03`):
+
+| Medición | p50 | p95 |
+|---|---|---|
+| Recepción en la API | 26 ms | 94 ms |
+| Del 202 hasta que el evento aparece en el snapshot SSE del portal (a través de nginx) | 1,04 s | 1,56 s |
+
+Eso cubre el consumidor, la BD y el intervalo de lectura de 1 s del hub. No mide el render del navegador, que queda pendiente.
+
+**Caos** (proyecto `fleet-chaos`, con el stack principal detenido; 30 vehículos, 10/s, 60 s):
+
+| Escenario | Qué se observó | Reconciliación |
+|---|---|---|
+| A · consumidor detenido (`ch-consumer-07031717`) | Durante ~43 s: mensajes en el tópico de 785 a 1.094, offsets del consumidor fijos en 869, lag de 9 a 225. Al arrancarlo, lag 0 | OK: 510 identidades confirmadas, 0 ambiguas. Persistencia p50 0,98 s y p95 67 s (las que quedaron retenidas) |
+| B · TimescaleDB detenida (`ch-db-07032716`) | La API siguió confirmando (510 eventos, 0 ambiguos). Offsets del consumidor fijos en 1.406, lag hasta 258. Al volver la BD, el consumidor retomó y el lag llegó a 0 unos 2,3 min después del arranque | OK: 510 identidades, todos los aceptados conservados. Persistencia p95 143 s |
+| C · Kafka detenido (`ch-kafka-07033403`) | 148 respuestas ambiguas (503) de 579 envíos. **Tras reiniciar Kafka, la API siguió respondiendo 503**: su productor idempotente (aiokafka) quedó con `OutOfOrderSequenceNumber` y no se recuperó solo. El primer reenvío (132 eventos) recibió 132 × 503. **Intervención manual:** `docker compose -p fleet-chaos restart api`. El segundo reenvío (`resend2`, mismo `event_id` y contenido) recibió 132 confirmaciones | Antes de la intervención: OK con 132 ambiguos no persistidos (`reconcile-report-sin-reinicio-api.md`). Después: OK, 492 identidades (360 + 132 reenviadas), 0 ambiguos, sin duplicados |
+
+**Pendiente en el escenario C:** que el productor de la API se recupere tras reiniciar Kafka sin tener que reiniciar la API. La prueba documenta el defecto; aquí no se corrige.
+
+**Stack principal después del caos:** se detuvo con `docker compose stop` y Docker tuvo que forzar la salida de Kafka y TimescaleDB (código 137). Tras `docker compose up` ambos volvieron sanos, y la reconciliación de `load-300`, repetida en solo lectura, pasó sin discrepancias.
+
+**Suite de pruebas tras el caos:** unitarias, 191 pasadas. La suite completa dio 223 pasadas, 1 fallida y 2 omitidas; no quedó registrado cuál falló, porque el resumen solo listaba las omitidas. Al repetir las de aceptación: 33 pasadas y 2 omitidas.
 
 ## Verificar que Kafka conserva mensajes y offsets al recrearse
 
