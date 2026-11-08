@@ -1,0 +1,20 @@
+# Hallazgos de trivy aceptados, cada uno con su justificación.
+misconfigurations:
+  - id: AWS-0104
+    paths:
+      - "network.tf"
+    statement: >-
+      Salida 443 a 0.0.0.0/0 en aws_vpc_security_group_egress_rule.https_out.
+      La instancia necesita GitHub, Docker Hub, Let's Encrypt, las APIs de AWS
+      (SSM, Secrets Manager, CloudWatch, S3) y el proveedor del modelo, sin
+      rangos de IP fijos. Sin NAT ni VPC endpoints (decisión de costo de la
+      demo) no se puede acotar. Solo se permite 443; la propuesta de HA usa
+      subredes privadas con endpoints.
+  - id: AWS-0095
+    paths:
+      - "monitoring.tf"
+    statement: >-
+      Tema SNS de alarmas sin cifrado en reposo. CloudWatch no puede publicar en
+      un tema cifrado con la clave administrada aws/sns (su política no admite
+      cloudwatch.amazonaws.com); cifrarlo exigiría una clave KMS propia con su
+      costo. Los mensajes solo contienen el nombre y el estado de la alarma.

@@ -1,0 +1,92 @@
+# Override de despliegue en AWS. Se usa SIEMPRE junto al Compose local:
+#   docker compose -f docker-compose.yml -f infra/deploy/compose.aws.yml ...
+# (infra/deploy/lib.sh define fleet_compose con estas opciones).
+#
+# Cambios respecto al Compose local:
+# - Ningún servicio interno publica puertos (`ports: !reset []`). Solo Caddy
+#   expone 80/443; el grupo de seguridad limita quién llega.
+# - Kafka sin el listener EXTERNAL (era para pruebas desde el host).
+# - Contraseña de PostgreSQL y clave del proveedor del modelo desde
+#   /etc/fleet/secrets.env (generado al desplegar, permisos 0600).
+# - Datos de Kafka y TimescaleDB en el volumen EBS montado en /data.
+# - Reinicio automático de todos los servicios de larga duración.
+# Lo verifica infra/scripts/check_compose_ports.py.
+
+services:
+  kafka:
+    ports: !reset []
+    restart: unless-stopped
+    environment:
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_HEAP_OPTS: ${KAFKA_HEAP_OPTS:--Xms512m -Xmx1g}
+
+  timescaledb:
+    ports: !reset []
+    restart: unless-stopped
+    environment:
+      # Solo tiene efecto al inicializar el volumen; después la contraseña se
+      # sincroniza en cada despliegue (deploy.sh, paso "secretos en la base").
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?falta POSTGRES_PASSWORD en /etc/fleet/secrets.env}
+      # timescaledb-tune (solo en la inicialización): deja memoria a Kafka y al resto.
+      TS_TUNE_MEMORY: ${TS_TUNE_MEMORY:-2GB}
+      TS_TUNE_NUM_CPUS: ${TS_TUNE_NUM_CPUS:-2}
+
+  migrate:
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD:?falta POSTGRES_PASSWORD}
+
+  api:
+    ports: !reset []
+    environment:
+      DATABASE_URL: postgresql://fleet:${POSTGRES_PASSWORD:?falta POSTGRES_PASSWORD}@timescaledb:5432/fleet
+
+  consumer:
+    environment:
+      DATABASE_URL: postgresql://fleet:${POSTGRES_PASSWORD:?falta POSTGRES_PASSWORD}@timescaledb:5432/fleet
+
+  agent:
+    ports: !reset []
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+
+  portal:
+    ports: !reset []
+
+  tests:
+    environment:
+      DATABASE_URL: postgresql://fleet:${POSTGRES_PASSWORD:?falta POSTGRES_PASSWORD}@timescaledb:5432/fleet
+
+  # Proxy de entrada: HTTPS automático (Let's Encrypt) si SITE_ADDRESS es un
+  # dominio; HTTP en :80 si SITE_ADDRESS es ":80".
+  caddy:
+    image: caddy:2.11.9
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+      CADDY_EMAIL_OPTION: ${CADDY_EMAIL_OPTION:-}
+    volumes:
+      - ./infra/deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      # Certificados y cuenta ACME: persisten en el volumen de datos.
+      - ${FLEET_DATA_DIR:-/data}/caddy/data:/data
+      - ${FLEET_DATA_DIR:-/data}/caddy/config:/config
+    depends_on:
+      - portal
+
+volumes:
+  kafka-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${FLEET_DATA_DIR:-/data}/kafka
+  tsdb-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${FLEET_DATA_DIR:-/data}/timescaledb

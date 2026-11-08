@@ -1,0 +1,51 @@
+#!/bin/bash
+# Consultas de operación en la instancia (como root, por SSM).
+#   fleet-ops status            servicios, disco, revisión desplegada
+#   fleet-ops lag               lag del grupo fleet-ingestion por partición
+#   fleet-ops dlq               mensajes acumulados en fleet.positions.dlq
+#   fleet-ops dlq-peek [N]      últimos N mensajes de la DLQ (con su motivo)
+#   fleet-ops circuit           estado del circuit breaker del agente
+#   fleet-ops logs <servicio>   últimas 200 líneas del servicio
+#   fleet-ops compose <args>    docker compose con la configuración de AWS
+set -euo pipefail
+# shellcheck source=infra/deploy/lib.sh
+source /opt/fleet/current/infra/deploy/lib.sh
+
+kafka_bin() { fleet_compose exec -T kafka "/opt/kafka/bin/$1" --bootstrap-server localhost:9092 "${@:2}"; }
+
+case "${1:-status}" in
+  status)
+    echo "revisión: $(cat "$FLEET_STATE/deployed_revision" 2>/dev/null || echo '?')"
+    echo "anterior: $(cat "$FLEET_STATE/previous_revision" 2>/dev/null || echo '-')"
+    cat "$FLEET_STATE/last_deploy" 2>/dev/null || true
+    fleet-health || true
+    ;;
+  lag)
+    kafka_bin kafka-consumer-groups.sh --describe --group fleet-ingestion
+    ;;
+  dlq)
+    # Suma de offsets finales por partición = mensajes enviados a la DLQ
+    # (la retención de Kafka puede haber borrado los más antiguos).
+    kafka_bin kafka-get-offsets.sh --topic fleet.positions.dlq --time -1
+    ;;
+  dlq-peek)
+    kafka_bin kafka-console-consumer.sh --topic fleet.positions.dlq --from-beginning \
+      --max-messages "${2:-10}" --timeout-ms 10000 \
+      --property print.headers=true --property print.timestamp=true || true
+    ;;
+  circuit)
+    fleet_compose exec -T agent python -c \
+      "import urllib.request; print(urllib.request.urlopen('http://localhost:8100/v1/chat/status', timeout=5).read().decode())"
+    ;;
+  logs)
+    fleet_compose logs --tail 200 --timestamps "${2:?servicio}"
+    ;;
+  compose)
+    shift
+    fleet_compose "$@"
+    ;;
+  *)
+    sed -n '2,10p' "$0"
+    exit 2
+    ;;
+esac

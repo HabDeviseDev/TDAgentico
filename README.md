@@ -9,6 +9,7 @@ MVP de monitoreo de flotas.
 - **Etapa 4:** agente operativo (LangChain) con chat en el portal y herramientas de solo lectura.
 - **Etapa 5:** app del conductor (React Native + Expo + SQLite) que funciona sin conexión e ingesta por lotes.
 - **Etapa 6:** pruebas de carga reproducibles (k6), reconciliación final y caos controlado.
+- **Etapa 7:** infraestructura en AWS (Terraform + una instancia EC2 con Docker Compose), validada sin credenciales; los recursos aún no se crearon.
 
 ```
 POST /v1/positions ──► FastAPI ──(acks=all)──► Kafka: fleet.positions.v1 ──► consumidor ──(1 transacción)──► TimescaleDB
@@ -71,6 +72,11 @@ Sin credencial todo lo demás funciona y el chat informa que el agente requiere 
 | `loadtest/` | Carga y caos: `prepare.py` (conjunto de datos), `k6/` (escenarios), `reconcile.py` + `reconcile_lib.py` (reconciliación de solo lectura), `portal_probe.py`, `lt.sh` y `chaos.sh` (orquestación con Docker), `compose.chaos.yml`; resultados en `loadtest/runs/` (no versionados) |
 | `services/mobile/` | App del conductor (Expo 58, React Native 0.88, TypeScript): `src/core/` (contrato, cola SQLite, sincronización; sin React Native), `src/ui/` (hook de la app), `App.tsx` (pantalla), `test/` y `e2e/` |
 | `.github/workflows/mobile.yml` | CI de la app: tipos y pruebas; compilación Android con EAS manual |
+| `infra/terraform/` | AWS: VPC, EC2 (AL2023), IAM, EBS de datos cifrado, snapshots, alarmas; `templates/` (arranque e instalación) |
+| `infra/deploy/` | En la instancia: `compose.aws.yml` (override), `Caddyfile`, `deploy.sh`, `bin/` (salud, operación, respaldo, restauración), `systemd/` |
+| `infra/scripts/` | `validate.sh` (validación sin credenciales) y `check_compose_ports.py` |
+| `.github/workflows/infra.yml` | CI de la infraestructura, sin credenciales |
+| `docs/arquitectura-aws.md` | Arquitectura de AWS, puntos únicos de falla, evolución a HA, cuentas, RPO/RTO y costos |
 | `services/agent/fleet_agent/` | Agente operativo: `tools.py` (herramientas tipadas), `agent.py` (bucle y límites), `fleet_client.py` (HTTP de solo lectura), `breaker.py` (circuit breaker), `model.py` (proveedor), `main.py` (`POST /v1/chat`) |
 | `.env.example` | Variables del agente y credencial del proveedor (copiar a `.env`, que no se versiona) |
 | `services/consumer/` | Consumidor `confluent-kafka` + `psycopg` |
@@ -1282,6 +1288,27 @@ Un `POST` debe responder `503` en unos 5 segundos. Después:
 docker compose start kafka
 ```
 
+## Despliegue en AWS
+
+Terraform y scripts para desplegar el MVP en **una instancia EC2 con Docker Compose**, con el mismo Compose de las etapas anteriores más un override (`infra/deploy/compose.aws.yml`). **Los recursos aún no se crearon:** esta etapa entrega código validado sin credenciales y documentación. Se crearán después con una cuenta configurada.
+
+- **Guía de uso** ([infra/README.md](infra/README.md)): requisitos de cuenta, permisos, secretos y dominio; comandos para preparar, planificar, aplicar, verificar, actualizar, volver atrás y destruir; operación, respaldo y restauración.
+- **Arquitectura** ([docs/arquitectura-aws.md](docs/arquitectura-aws.md)): diagrama, por qué sirve para una demo, puntos únicos de falla, evolución a alta disponibilidad (implementado frente a propuesto), encaje en una organización con cuentas separadas, persistencia, RPO/RTO como objetivos sin validar, dimensionamiento y recursos con costo.
+
+En resumen:
+
+- **Instancia:** Amazon Linux 2023, elegida según la arquitectura del tipo de instancia (por defecto `t3.large`).
+- **Volumen de datos:** EBS gp3 cifrado en `/data`, separado de la instancia, con Kafka, TimescaleDB, certificados y respaldos. Tiene snapshots periódicos (DLM) y un snapshot final al destruir.
+- **Entrada:** Caddy es el único punto de entrada (HTTPS con Let's Encrypt si hay dominio), limitado a `allowed_cidrs`. Kafka, PostgreSQL, API y agente no publican puertos.
+- **Administración:** sin SSH, solo por Systems Manager.
+- **Secretos:** se leen de Secrets Manager al desplegar y se guardan en `/etc/fleet/secrets.env` (`0600`). Nunca pasan por Terraform, `user_data`, salidas ni registros.
+- **Despliegue:** por SHA exacto, en 9 pasos que se pueden repetir (con un error identificable y reintento) y que terminan con una ingesta de prueba de punta a punta.
+- **Monitoreo:** métricas de servicios, disco y memoria, con alarmas en CloudWatch y recuperación automática de la instancia.
+
+```bash
+infra/scripts/validate.sh all     # validación sin credenciales (solo requiere Docker)
+```
+
 ## Limitaciones y decisiones de la etapa 2
 
 - **Sondeo en vez de notificaciones:** más simple y correcto para el MVP, con hasta `VEHICLES_POLL_INTERVAL_S` de retraso. Ver la sección de escalado.
@@ -1330,6 +1357,36 @@ docker compose start kafka
 - **Simulación en el servidor:** se distingue solo por el vehículo elegido; el contrato no tiene un campo de origen.
 - **Sin autenticación** de la app frente a la API, y `http` sin TLS solo para la red local de desarrollo.
 - **La cola local no se purga:** los eventos recibidos se conservan (en un MVP sirven como evidencia).
+
+## Limitaciones de la etapa 7 y pendientes
+
+**Infraestructura en AWS** (detalle en [infra/README.md](infra/README.md#niveles-de-verificación)):
+
+- **Hecho en local, sin credenciales:**
+  - `terraform fmt -check` e `init -backend=false`.
+  - Renderizado y revisión de `user_data`.
+  - `tflint` y `trivy`, con dos excepciones justificadas.
+  - `shellcheck` y `bash -n`.
+  - Compose renderizado y comprobación de puertos.
+  - `caddy validate`.
+  - Instalación de Docker, Compose y Buildx en un contenedor Amazon Linux 2023.
+- **`terraform validate` no se pudo completar en este equipo.** En Docker, el proveedor de AWS no arranca en el minuto que espera Terraform (i3 con 8 GB y menos de 1 GB libre); en Windows nativo, la inspección TLS de la red rompe el canal local con el plugin. Queda pendiente que pase en el workflow `infra` o en otra máquina.
+- **Pendientes con cuenta real:**
+  - `terraform plan`.
+  - Despliegue: arranque, volumen, secretos, HTTPS, ingesta de prueba y alarmas.
+  - Compatibilidad de Compose v5.6.1 con el Docker 25.0.14 de AL2023 con el demonio en marcha.
+  - Pruebas de recuperación: reinicio, reemplazo de instancia, restauración de snapshot y de `pg_dump`, y rotación de secretos.
+  - Medir RPO y RTO.
+  - Repetir la carga de la etapa 6 en la instancia.
+- **Una sola instancia en una sola AZ.** La evolución a alta disponibilidad está descrita, no implementada.
+
+**Pendientes que siguen abiertos de etapas anteriores:**
+
+- **Validación del chat con el proveedor real:** nunca se ejecutó con una credencial de Anthropic (etapa 4).
+- **Prueba de la app en Android:** no se ejecutó en un teléfono ni en un emulador (etapa 5).
+- **Limpieza de la tarea auxiliar de aiokafka:** al reemplazar el productor queda un `Task was destroyed but it is pending!`, cosmético y sin corregir (etapa 6).
+- **Límites de rendimiento observados:** son mediciones locales (4 CPU, 3,78 GiB). Con el endpoint individual, 50/s no se sostuvieron sin respuestas ambiguas; por lotes, 3.000 eventos en 120 lotes cumplieron los umbrales. No hay medición en AWS.
+- **Repetición de aceptación con la API reconstruida:** el stack local no se reconstruyó con la corrección del productor (`docker compose up -d --build api`) ni se repitieron las pruebas de aceptación (etapa 6). En esta etapa el stack local se detuvo con `docker compose stop`, sin borrar volúmenes.
 
 ## Reiniciar desde cero
 

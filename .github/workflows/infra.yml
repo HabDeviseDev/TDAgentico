@@ -1,0 +1,57 @@
+# Validación de la infraestructura de AWS (infra/). No usa credenciales ni
+# cuenta de AWS: solo validación sintáctica y estática. Un plan real, un
+# despliegue y las pruebas de recuperación se hacen aparte (infra/README.md).
+name: infra
+
+on:
+  pull_request:
+    paths:
+      - "infra/**"
+      - "docker-compose.yml"
+      - ".github/workflows/infra.yml"
+      - "tests/unit/test_check_compose_ports.py"
+  push:
+    branches: [main]
+    paths:
+      - "infra/**"
+      - "docker-compose.yml"
+      - ".github/workflows/infra.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: infra-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: fmt, init -backend=false, validate y plantilla de user_data
+        run: infra/scripts/validate.sh terraform
+      - name: tflint
+        run: infra/scripts/validate.sh tflint
+      - name: trivy config
+        run: infra/scripts/validate.sh trivy
+
+  deploy-files:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: bash -n y shellcheck
+        run: infra/scripts/validate.sh shell
+      - name: Compose renderizado y puertos del override
+        run: infra/scripts/validate.sh compose
+      - name: Pruebas del verificador de puertos
+        run: |
+          python3 -m pip install --quiet pytest
+          python3 -m pytest -q tests/unit/test_check_compose_ports.py -p no:cacheprovider -o addopts=""
+      - name: Caddyfile (con y sin dominio)
+        run: infra/scripts/validate.sh caddy
+      - name: Instalación de Docker y Compose en Amazon Linux 2023
+        run: infra/scripts/validate.sh install

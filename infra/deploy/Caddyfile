@@ -1,0 +1,28 @@
+# Proxy de entrada del despliegue en AWS.
+# SITE_ADDRESS = "flota.example.com" -> HTTPS con certificado de Let's Encrypt
+#   (desafío HTTP-01 por el puerto 80) y redirección de HTTP a HTTPS.
+# SITE_ADDRESS = ":80" -> solo HTTP (demo sin dominio).
+# CADDY_EMAIL_OPTION = "email ops@example.com" o vacío.
+{
+	{$CADDY_EMAIL_OPTION}
+}
+
+{$SITE_ADDRESS} {
+	# Sin comprimir text/event-stream: el SSE pasa tal cual.
+	encode {
+		gzip
+		match {
+			header Content-Type text/html*
+			header Content-Type text/css*
+			header Content-Type application/javascript*
+			header Content-Type application/json*
+			header Content-Type image/svg+xml*
+		}
+	}
+	header -Server
+	# El portal (nginx) sirve la SPA y hace de proxy a la API y al agente,
+	# incluido el SSE. flush_interval -1 entrega cada evento sin esperar.
+	reverse_proxy portal:80 {
+		flush_interval -1
+	}
+}

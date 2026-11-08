@@ -1,2 +1,7 @@
 # Los scripts se ejecutan dentro de contenedores Linux: siempre LF.
 *.sh text eol=lf
+# Archivos que se ejecutan o leen en la instancia Linux (infra/).
+infra/deploy/bin/* text eol=lf
+infra/deploy/systemd/* text eol=lf
+infra/deploy/Caddyfile text eol=lf
+*.tftpl text eol=lf

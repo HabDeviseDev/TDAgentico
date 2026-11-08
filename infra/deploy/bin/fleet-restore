@@ -1,0 +1,63 @@
+#!/bin/bash
+# Restaura un respaldo de fleet-backup sobre la base "fleet".
+# DESTRUCTIVO: reemplaza la base actual. Requiere --yes.
+#
+# Uso: fleet-restore <archivo.dump | s3://bucket/postgres/archivo.dump> --yes [--replay]
+#   --replay  después de restaurar, mueve el offset del consumidor al instante
+#             del respaldo para reingresar desde Kafka lo posterior (seguro:
+#             el consumidor deduplica por event_id). Solo cubre lo que siga
+#             dentro de la retención de Kafka.
+set -euo pipefail
+# shellcheck source=infra/deploy/lib.sh
+source /opt/fleet/current/infra/deploy/lib.sh
+# shellcheck source=/dev/null
+source "$FLEET_ETC/deploy.env"
+
+src="${1:?archivo de respaldo}"
+confirm="${2:-}"
+replay="${3:-}"
+[ "$confirm" = --yes ] || { echo "Reemplaza la base actual. Repita con --yes para confirmar." >&2; exit 2; }
+
+work=$(mktemp -d "$FLEET_DATA_DIR/backups/restore.XXXXXX")
+trap 'rm -rf "$work"' EXIT
+if [[ "$src" == s3://* ]]; then
+  aws s3 cp --region "$FLEET_REGION" --only-show-errors "$src" "$work/restore.dump"
+  aws s3 cp --region "$FLEET_REGION" --only-show-errors "$src.time" "$work/restore.dump.time" 2>/dev/null || true
+else
+  cp "$src" "$work/restore.dump"
+  cp "$src.time" "$work/restore.dump.time" 2>/dev/null || true
+fi
+
+psql_admin() { fleet_compose exec -T timescaledb psql -v ON_ERROR_STOP=1 -q -U fleet "$@"; }
+
+fleet_log "deteniendo escritores (api, consumer, agent)"
+fleet_compose stop api consumer agent
+
+fleet_log "recreando la base fleet"
+psql_admin -d postgres -c "DROP DATABASE IF EXISTS fleet WITH (FORCE)"
+psql_admin -d postgres -c "CREATE DATABASE fleet OWNER fleet"
+psql_admin -d fleet -c "CREATE EXTENSION IF NOT EXISTS timescaledb" -c "SELECT timescaledb_pre_restore()"
+
+fleet_log "pg_restore"
+# La extensión ya existe (pre_restore la necesita): ese error es esperado.
+# Cualquier otro error detiene la restauración con los servicios detenidos.
+if ! fleet_compose exec -T timescaledb pg_restore -U fleet -d fleet --no-owner     < "$work/restore.dump" 2> "$work/pg_restore.err"; then
+  if grep -E "error:" "$work/pg_restore.err" | grep -vq 'extension "timescaledb" already exists'; then
+    cat "$work/pg_restore.err" >&2
+    echo "ERROR pg_restore falló; api, consumer y agent siguen detenidos" >&2
+    exit 1
+  fi
+fi
+psql_admin -d fleet -c "SELECT timescaledb_post_restore()"
+
+if [ "$replay" = --replay ] && [ -f "$work/restore.dump.time" ]; then
+  at=$(sed -E 's/^([0-9]{4})([0-9]{2})([0-9]{2})T([0-9]{2})([0-9]{2})([0-9]{2})Z$/\1-\2-\3T\4:\5:\6.000/' "$work/restore.dump.time")
+  fleet_log "moviendo offsets de fleet-ingestion a $at (UTC)"
+  fleet_compose exec -T kafka /opt/kafka/bin/kafka-consumer-groups.sh --bootstrap-server localhost:9092 \
+    --group fleet-ingestion --reset-offsets --topic fleet.positions.v1 --to-datetime "$at" --execute
+fi
+
+fleet_log "migraciones (idempotentes) y arranque"
+fleet_compose run --rm --no-deps migrate
+fleet_compose up -d api consumer agent
+fleet_log "restauración completa; verifique con: fleet-ops status"

@@ -1,0 +1,35 @@
+#!/bin/bash
+# Respaldo lógico de PostgreSQL/TimescaleDB (pg_dump formato custom).
+# Lo ejecuta fleet-backup.timer a diario; también se puede correr a mano.
+# Guarda en /data/backups (mismo volumen EBS: lo cubren los snapshots) y,
+# si hay bucket configurado, sube una copia a S3.
+# Limitación: el respaldo es consistente para la base, pero no está
+# coordinado con Kafka (ver docs/arquitectura-aws.md, "Consistencia").
+set -euo pipefail
+# shellcheck source=infra/deploy/lib.sh
+source /opt/fleet/current/infra/deploy/lib.sh
+# shellcheck source=/dev/null
+source "$FLEET_ETC/deploy.env"
+
+stamp=$(date -u +%Y%m%dT%H%M%SZ)
+dir="$FLEET_DATA_DIR/backups"
+file="$dir/fleet-$stamp.dump"
+umask 077
+
+fleet_log "respaldo -> $file"
+# Socket local del contenedor (no requiere contraseña). pg_dump toma una
+# instantánea transaccional: no bloquea la ingesta.
+fleet_compose exec -T timescaledb pg_dump -U fleet -d fleet -Fc > "$file.partial"
+mv "$file.partial" "$file"
+# Registrar el instante del respaldo para una posible repetición desde Kafka.
+echo "$stamp" > "$file.time"
+fleet_log "tamaño: $(du -h "$file" | cut -f1)"
+
+if [ -n "${FLEET_BACKUP_BUCKET:-}" ]; then
+  aws s3 cp --region "$FLEET_REGION" --only-show-errors "$file" "s3://$FLEET_BACKUP_BUCKET/postgres/$(basename "$file")"
+  fleet_log "copiado a s3://$FLEET_BACKUP_BUCKET/postgres/"
+fi
+
+# Retención local.
+find "$dir" -name 'fleet-*.dump*' -mtime +"${FLEET_BACKUP_DAYS:-30}" -delete
+fleet_log "respaldo completo"
