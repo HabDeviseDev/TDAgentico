@@ -1,0 +1,88 @@
+{
+  "run_id": "ch-kafka-08001713",
+  "generated_at": "2026-11-08T00:32:12.151397+00:00",
+  "git_commit": "4ca1f2c",
+  "params": {
+    "mode": "single",
+    "vehicles": 30,
+    "rate": 10.0,
+    "duration_s": 150,
+    "seed": 1,
+    "iterations": 1500,
+    "batch_size": null,
+    "planned_requests": 1500
+  },
+  "planned": {
+    "counts": {
+      "new": 1275,
+      "dup": 150,
+      "invalid": 75
+    },
+    "unique_identities": 1275
+  },
+  "executed": {
+    "new": {
+      "confirmed": 1249,
+      "sent": 1250,
+      "ambiguous": 1,
+      "not_sent": 25
+    },
+    "invalid": {
+      "expected_rejection": 74,
+      "sent": 74,
+      "not_sent": 1
+    },
+    "dup": {
+      "confirmed": 40,
+      "sent": 147,
+      "ambiguous": 107,
+      "not_sent": 3
+    }
+  },
+  "result_files": [
+    "k6-points-ingest.json",
+    "k6-points-resend.json"
+  ],
+  "identities": {
+    "identities": 1350,
+    "confirmed": 1250,
+    "ambiguous": 0,
+    "ambiguous_persisted": 0,
+    "invalid": 75,
+    "not_sent": 25,
+    "unexpected": 0,
+    "persisted_ok": 1250,
+    "vehicles_checked": 30
+  },
+  "ambiguous": {
+    "count": 0,
+    "persisted": 0,
+    "not_persisted": 0,
+    "items": []
+  },
+  "dlq": {
+    "checked": true,
+    "scanned": 0,
+    "hits": []
+  },
+  "wait": {
+    "seconds": 0.4,
+    "max_wait_s": 180.0,
+    "polls": [
+      {
+        "t": 0.4,
+        "missing_confirmed": 0,
+        "lag": 0
+      }
+    ],
+    "final_lag": 0
+  },
+  "persistence_latency_ms": {
+    "p50": 613.999,
+    "p95": 3409.233,
+    "p99": 30426.473
+  },
+  "discrepancies": [],
+  "discrepancy_count": 0,
+  "ok": true
+}

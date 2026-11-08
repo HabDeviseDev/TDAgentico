@@ -10,13 +10,22 @@ misma publicación (`publish_event`).
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
 from datetime import datetime, timezone
-from typing import Any, Literal
+from typing import Any, Awaitable, Callable, Literal
 
 from aiokafka import AIOKafkaProducer
-from aiokafka.errors import KafkaError
+from aiokafka.errors import (
+    InvalidProducerEpoch,
+    InvalidProducerIdMapping,
+    InvalidTxnState,
+    KafkaError,
+    OutOfOrderSequenceNumber,
+    ProducerFenced,
+    UnknownProducerId,
+)
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, ValidationError
 
@@ -31,26 +40,180 @@ router = APIRouter()
 SEND_TIMEOUT_S = settings.kafka_send_timeout_s
 BATCH_MAX_EVENTS = settings.batch_max_events
 BATCH_MAX_BYTES = settings.batch_max_bytes
+# Reemplazo del productor tras un error fatal (ver ResilientProducer).
+PRODUCER_START_TIMEOUT_S = max(10.0, settings.kafka_send_timeout_s * 2)
+PRODUCER_STOP_TIMEOUT_S = 10.0
+PRODUCER_RECREATE_MIN_INTERVAL_S = 3.0
 
 
-async def start_producer() -> AIOKafkaProducer:
+def _new_producer() -> AIOKafkaProducer:
+    return AIOKafkaProducer(
+        bootstrap_servers=settings.kafka_bootstrap,
+        acks="all",
+        enable_idempotence=True,
+        linger_ms=5,
+        request_timeout_ms=int(settings.kafka_send_timeout_s * 1000),
+    )
+
+
+async def _start_once(timeout_s: float) -> AIOKafkaProducer:
+    """Crea y arranca un productor; si no arranca a tiempo, lo cierra y propaga el error."""
+    producer = _new_producer()
+    try:
+        await asyncio.wait_for(producer.start(), timeout=timeout_s)
+    except BaseException:
+        with contextlib.suppress(Exception):
+            await asyncio.wait_for(producer.stop(), timeout=timeout_s)
+        raise
+    return producer
+
+
+async def _start_with_retries() -> AIOKafkaProducer:
     for attempt in range(1, settings.kafka_startup_retries + 1):
-        producer = AIOKafkaProducer(
-            bootstrap_servers=settings.kafka_bootstrap,
-            acks="all",
-            enable_idempotence=True,
-            linger_ms=5,
-            request_timeout_ms=int(settings.kafka_send_timeout_s * 1000),
-        )
         try:
-            await producer.start()
+            producer = await _start_once(PRODUCER_START_TIMEOUT_S)
             log.info("Productor Kafka conectado a %s", settings.kafka_bootstrap)
             return producer
-        except KafkaError as exc:
-            await producer.stop()
-            log.warning("Kafka no disponible (intento %d): %s", attempt, exc)
+        except (KafkaError, asyncio.TimeoutError) as exc:
+            log.warning("Kafka no disponible (intento %d): %r", attempt, exc)
             await asyncio.sleep(2)
     raise RuntimeError("No se pudo conectar a Kafka")
+
+
+# Errores tras los que aiokafka no vuelve a enviar con ese productor: su tarea
+# interna termina y el acumulador repite la misma excepción en cada envío.
+FATAL_PRODUCER_ERRORS: tuple[type[BaseException], ...] = (
+    OutOfOrderSequenceNumber,
+    UnknownProducerId,
+    ProducerFenced,
+    InvalidProducerEpoch,
+    InvalidProducerIdMapping,
+    InvalidTxnState,
+)
+
+
+def _sender_is_dead(producer: Any) -> bool:
+    """True si terminó la tarea de envío interna de aiokafka (el productor ya no envía).
+    Lee atributos privados de aiokafka 0.12 con cuidado: un doble no los tiene."""
+    sender = getattr(producer, "_sender", None)
+    task = getattr(sender, "sender_task", None)
+    return isinstance(task, asyncio.Future) and task.done()
+
+
+async def _force_close(producer: Any, timeout_s: float) -> None:
+    """Cierre sin vaciar el acumulador. `stop()` espera a que se confirmen los
+    lotes pendientes, y con un productor inservible eso no ocurre: al vencer,
+    su tarea de envío quedaba viva ("Task was destroyed but it is pending").
+    Aquí se cancela esa tarea y se cierran las conexiones (atributos de
+    aiokafka 0.12; un doble puede no tenerlos)."""
+    for part in (getattr(producer, "_sender", None), getattr(producer, "client", None)):
+        close = getattr(part, "close", None)
+        if close is None:
+            continue
+        try:
+            await asyncio.wait_for(close(), timeout=timeout_s)
+        except Exception as exc:
+            log.warning("Cierre forzado incompleto (%s): %r", type(part).__name__, exc)
+
+
+def needs_replacement(producer: Any, exc: BaseException) -> bool:
+    return isinstance(exc, FATAL_PRODUCER_ERRORS) or _sender_is_dead(producer)
+
+
+class ResilientProducer:
+    """Productor Kafka que se reemplaza solo cuando queda inservible.
+
+    Tras reiniciar Kafka, el productor idempotente de aiokafka puede recibir
+    `OutOfOrderSequenceNumber` (u otro error fatal) y desde entonces fallar en
+    cada envío. Al detectarlo se programa UN reemplazo en segundo plano
+    (candado + generación): se arranca un productor nuevo y, si arranca, se
+    cambia por el anterior y el anterior se cierra. El envío que falló sigue
+    fallando (503 o `retryable`); el cliente reenvía con el mismo event_id y
+    ese intento ya usa el productor nuevo. Si Kafka aún no responde, se
+    conserva el anterior y el siguiente error fatal lo vuelve a intentar
+    (como mucho un intento cada `min_interval_s`).
+    """
+
+    def __init__(self, factory: Callable[[], Awaitable[Any]], initial: Any, *,
+                 min_interval_s: float | None = None, stop_timeout_s: float | None = None):
+        self._factory = factory
+        self._producer = initial
+        self._generation = 0
+        self._lock = asyncio.Lock()
+        self._task: asyncio.Task | None = None
+        self._last_attempt = float("-inf")
+        self._min_interval_s = (PRODUCER_RECREATE_MIN_INTERVAL_S
+                                if min_interval_s is None else min_interval_s)
+        self._stop_timeout_s = (PRODUCER_STOP_TIMEOUT_S
+                                if stop_timeout_s is None else stop_timeout_s)
+        self._closed = False
+        self.replacements = 0
+
+    @property
+    def current(self) -> Any:
+        return self._producer
+
+    async def send_and_wait(self, topic: str, value=None, key=None, headers=None):
+        producer, generation = self._producer, self._generation
+        try:
+            return await producer.send_and_wait(topic, value=value, key=key, headers=headers)
+        except KafkaError as exc:
+            if needs_replacement(producer, exc):
+                self._schedule_replacement(generation, exc)
+            raise
+
+    def _schedule_replacement(self, generation: int, reason: BaseException) -> None:
+        if self._closed or generation != self._generation:
+            return  # ese productor ya se reemplazó
+        if self._task is not None and not self._task.done():
+            return  # un solo reemplazo a la vez
+        self._task = asyncio.create_task(self._replace(generation, reason),
+                                         name="kafka-producer-replace")
+
+    async def _replace(self, generation: int, reason: BaseException) -> None:
+        async with self._lock:
+            if self._closed or generation != self._generation:
+                return
+            loop = asyncio.get_running_loop()
+            wait = self._last_attempt + self._min_interval_s - loop.time()
+            if wait > 0:
+                await asyncio.sleep(wait)
+            self._last_attempt = loop.time()
+            log.warning("Productor Kafka inservible (%r); creando uno nuevo", reason)
+            try:
+                new = await self._factory()
+            except Exception as exc:  # Kafka aún no responde: se reintenta con el siguiente error
+                log.warning("No se pudo crear el productor nuevo: %r", exc)
+                return
+            if self._closed:
+                old = new
+            else:
+                old, self._producer = self._producer, new
+                self._generation += 1
+                self.replacements += 1
+                log.info("Productor Kafka reemplazado (reemplazo n.º %d)", self.replacements)
+        await self._stop_quietly(old)
+
+    async def _stop_quietly(self, producer: Any) -> None:
+        try:
+            await asyncio.wait_for(producer.stop(), timeout=self._stop_timeout_s)
+            return
+        except Exception as exc:
+            log.warning("El productor anterior no cerró limpio (%r); cierre forzado", exc)
+        await _force_close(producer, self._stop_timeout_s)
+
+    async def stop(self) -> None:
+        self._closed = True
+        if self._task is not None and not self._task.done():
+            self._task.cancel()
+            with contextlib.suppress(asyncio.CancelledError, Exception):
+                await self._task
+        await self._stop_quietly(self._producer)
+
+
+async def start_producer() -> ResilientProducer:
+    initial = await _start_with_retries()
+    return ResilientProducer(lambda: _start_once(PRODUCER_START_TIMEOUT_S), initial)
 
 
 class Accepted(BaseModel):
@@ -58,7 +221,7 @@ class Accepted(BaseModel):
     status: str = "accepted"
 
 
-def get_producer(request: Request) -> AIOKafkaProducer:
+def get_producer(request: Request) -> ResilientProducer:
     """Dependencia separada para poder sustituir el productor en pruebas."""
     return request.app.state.producer
 
@@ -67,8 +230,10 @@ class PublishError(Exception):
     """Kafka no confirmó el mensaje: el cliente debe reintentar con el mismo event_id."""
 
 
-async def publish_event(producer: AIOKafkaProducer, event: PositionEvent) -> None:
-    """Publica y espera el ack de Kafka (acks=all) con límite de tiempo."""
+async def publish_event(producer: ResilientProducer, event: PositionEvent) -> None:
+    """Publica y espera el ack de Kafka (acks=all) con límite de tiempo.
+    Si el error deja inservible al productor, ResilientProducer programa su
+    reemplazo; aquí solo se informa que no hubo ack (503 / retryable)."""
     headers = [
         ("received_at", datetime.now(timezone.utc).isoformat().encode()),
         ("producer", b"api"),
@@ -98,7 +263,7 @@ async def publish_event(producer: AIOKafkaProducer, event: PositionEvent) -> Non
 )
 async def ingest_position(
     event: PositionEvent,
-    producer: AIOKafkaProducer = Depends(get_producer),
+    producer: ResilientProducer = Depends(get_producer),
 ) -> Accepted:
     try:
         check_not_in_future(event)
@@ -192,7 +357,7 @@ async def _read_limited_body(request: Request, max_bytes: int) -> bytes:
 )
 async def ingest_batch(
     request: Request,
-    producer: AIOKafkaProducer = Depends(get_producer),
+    producer: ResilientProducer = Depends(get_producer),
 ) -> BatchResponse:
     """Un resultado por evento, en el orden de entrada (`index`):
     - accepted: Kafka confirmó la publicación (acks=all).

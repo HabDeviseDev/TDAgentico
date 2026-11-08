@@ -1,0 +1,59 @@
+{
+  "run_id": "ch-kafka-08001713",
+  "mode": "single",
+  "vehicles": 30,
+  "rate": 10.0,
+  "duration_s": 150,
+  "seed": 1,
+  "iterations": 1500,
+  "batch_size": null,
+  "planned_requests": 1500,
+  "planned_counts": {
+    "new": 1275,
+    "dup": 150,
+    "invalid": 75
+  },
+  "planned_unique_identities": 1275,
+  "vehicle_ids": [
+    "LT-ch-kafka-08001713-0001",
+    "LT-ch-kafka-08001713-0002",
+    "LT-ch-kafka-08001713-0003",
+    "LT-ch-kafka-08001713-0004",
+    "LT-ch-kafka-08001713-0005",
+    "LT-ch-kafka-08001713-0006",
+    "LT-ch-kafka-08001713-0007",
+    "LT-ch-kafka-08001713-0008",
+    "LT-ch-kafka-08001713-0009",
+    "LT-ch-kafka-08001713-0010",
+    "LT-ch-kafka-08001713-0011",
+    "LT-ch-kafka-08001713-0012",
+    "LT-ch-kafka-08001713-0013",
+    "LT-ch-kafka-08001713-0014",
+    "LT-ch-kafka-08001713-0015",
+    "LT-ch-kafka-08001713-0016",
+    "LT-ch-kafka-08001713-0017",
+    "LT-ch-kafka-08001713-0018",
+    "LT-ch-kafka-08001713-0019",
+    "LT-ch-kafka-08001713-0020",
+    "LT-ch-kafka-08001713-0021",
+    "LT-ch-kafka-08001713-0022",
+    "LT-ch-kafka-08001713-0023",
+    "LT-ch-kafka-08001713-0024",
+    "LT-ch-kafka-08001713-0025",
+    "LT-ch-kafka-08001713-0026",
+    "LT-ch-kafka-08001713-0027",
+    "LT-ch-kafka-08001713-0028",
+    "LT-ch-kafka-08001713-0029",
+    "LT-ch-kafka-08001713-0030"
+  ],
+  "invalid_rule": "lat fuera de rango (95.0 > 90)",
+  "block": {
+    "size": 20,
+    "quota": {
+      "new": 17,
+      "dup": 2,
+      "invalid": 1
+    }
+  },
+  "prepared_at": "2026-11-08T00:19:41.629486+00:00"
+}
