@@ -9,9 +9,8 @@
 #   fleet-ops compose <args>    docker compose con la configuración de AWS
 set -euo pipefail
 # shellcheck source=infra/deploy/lib.sh
-source /opt/fleet/current/infra/deploy/lib.sh
+source "${FLEET_LIB:-/opt/fleet/current/infra/deploy/lib.sh}"
 
-kafka_bin() { fleet_compose exec -T kafka "/opt/kafka/bin/$1" --bootstrap-server localhost:9092 "${@:2}"; }
 
 case "${1:-status}" in
   status)
@@ -21,15 +20,15 @@ case "${1:-status}" in
     fleet-health || true
     ;;
   lag)
-    kafka_bin kafka-consumer-groups.sh --describe --group fleet-ingestion
+    fleet_kafka kafka-consumer-groups.sh --describe --group "$FLEET_KAFKA_GROUP"
     ;;
   dlq)
     # Suma de offsets finales por partición = mensajes enviados a la DLQ
     # (la retención de Kafka puede haber borrado los más antiguos).
-    kafka_bin kafka-get-offsets.sh --topic fleet.positions.dlq --time -1
+    fleet_kafka kafka-get-offsets.sh --topic fleet.positions.dlq --time -1
     ;;
   dlq-peek)
-    kafka_bin kafka-console-consumer.sh --topic fleet.positions.dlq --from-beginning \
+    fleet_kafka kafka-console-consumer.sh --topic fleet.positions.dlq --from-beginning \
       --max-messages "${2:-10}" --timeout-ms 10000 \
       --property print.headers=true --property print.timestamp=true || true
     ;;

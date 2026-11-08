@@ -1,31 +1,26 @@
 # Renderiza la plantilla real de user_data con valores ficticios. No declara
 # proveedores: no requiere credenciales ni descargar el proveedor de AWS.
-# Lo usa infra/scripts/validate.sh (terraform console) para revisar el
-# resultado con bash -n y shellcheck.
+# Usa el mismo módulo deploy-config que infra/terraform/main.tf, así que
+# prueba las expresiones reales con las opciones ausentes (null) y
+# configuradas. Lo usa infra/scripts/validate.sh (terraform console) para
+# revisar el resultado con bash -n y shellcheck.
 
 variable "auto_deploy" {
   type    = bool
   default = true
 }
 
+variable "optional_configured" {
+  description = "true = dominio, correo, secretos opcionales y bucket configurados; false = todos null."
+  type        = bool
+  default     = false
+}
+
 locals {
   templates = "${path.module}/../../terraform/templates"
+  optional  = var.optional_configured
   user_data = templatefile("${local.templates}/user_data.sh.tftpl", {
-    deploy_env = {
-      FLEET_ENVIRONMENT    = "demo"
-      FLEET_REGION         = "us-east-1"
-      FLEET_REPO_URL       = "https://github.com/HabDeviseDev/TDAgentico.git"
-      FLEET_GIT_REVISION   = "0123456789abcdef0123456789abcdef01234567"
-      FLEET_SITE_ADDRESS   = "flota.example.com"
-      FLEET_ACME_EMAIL     = "ops@example.com"
-      FLEET_PG_SECRET_ARN  = "arn:aws:secretsmanager:us-east-1:111122223333:secret:fleet/demo/postgres-AbCdEf"
-      FLEET_LLM_SECRET_ARN = ""
-      FLEET_GIT_SECRET_ARN = ""
-      FLEET_DATA_VOLUME_ID = "vol-0123456789abcdef0"
-      FLEET_BACKUP_BUCKET  = ""
-      FLEET_BACKUP_DAYS    = "30"
-      FLEET_METRIC_NS      = "Fleet/fleet-demo"
-    }
+    deploy_env         = module.deploy_config.deploy_env
     compose_version    = "v5.6.1"
     buildx_version     = "v0.38.1"
     architecture       = "x86_64"
@@ -33,6 +28,24 @@ locals {
     install_docker_b64 = filebase64("${local.templates}/install-docker.sh")
     fleet_deploy_b64   = filebase64("${local.templates}/fleet-deploy.sh")
   })
+}
+
+module "deploy_config" {
+  source = "../../terraform/modules/deploy-config"
+
+  environment           = "demo"
+  region                = "us-east-1"
+  repo_url              = "https://github.com/HabDeviseDev/TDAgentico.git"
+  git_revision          = "0123456789abcdef0123456789abcdef01234567"
+  domain_name           = local.optional ? "flota.example.com" : null
+  acme_email            = local.optional ? "ops@example.com" : null
+  postgres_secret_arn   = "arn:aws:secretsmanager:us-east-1:111122223333:secret:fleet/demo/postgres-AbCdEf"
+  anthropic_secret_arn  = local.optional ? "arn:aws:secretsmanager:us-east-1:111122223333:secret:fleet/demo/anthropic-AbCdEf" : null
+  git_token_secret_arn  = local.optional ? "arn:aws:secretsmanager:us-east-1:111122223333:secret:fleet/demo/git-AbCdEf" : null
+  data_volume_id        = "vol-0123456789abcdef0"
+  backup_bucket         = local.optional ? "fleet-demo-backups-111122223333" : null
+  backup_retention_days = 30
+  metric_namespace      = "Fleet/fleet-demo"
 }
 
 output "user_data_b64" {

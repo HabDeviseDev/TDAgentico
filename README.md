@@ -1364,18 +1364,21 @@ infra/scripts/validate.sh all     # validación sin credenciales (solo requiere 
 
 - **Hecho en local, sin credenciales:**
   - `terraform fmt -check` e `init -backend=false`.
-  - Renderizado y revisión de `user_data`.
+  - `terraform test` del módulo sin proveedores que arma `deploy.env`, con las opciones ausentes, configuradas y mixtas. Corrige un fallo: `coalesce(null, "")` rompía el plan cuando no se configuraban el correo de ACME, la clave del modelo o el token de Git.
+  - Renderizado y revisión de `user_data`, con y sin opciones.
+  - Respaldo y restauración con AWS CLI y Compose simulados (33 pruebas). Cada respaldo sube a S3 el volcado y sus metadatos (checksum y offsets de Kafka). `fleet-restore` exige `--replay` o `--no-replay` y valida todo antes de detener servicios.
+  - Formato de las herramientas de Kafka contra el broker local: lectura de offsets y `--reset-offsets --from-file` con `--dry-run`.
   - `tflint` y `trivy`, con dos excepciones justificadas.
   - `shellcheck` y `bash -n`.
   - Compose renderizado y comprobación de puertos.
   - `caddy validate`.
   - Instalación de Docker, Compose y Buildx en un contenedor Amazon Linux 2023.
-- **`terraform validate` no se pudo completar en este equipo.** En Docker, el proveedor de AWS no arranca en el minuto que espera Terraform (i3 con 8 GB y menos de 1 GB libre); en Windows nativo, la inspección TLS de la red rompe el canal local con el plugin. Queda pendiente que pase en el workflow `infra` o en otra máquina.
+- **`terraform validate` pasa** desde la corrección de opciones, con el stack local detenido. En la primera ronda no se pudo completar en este equipo: el proveedor de AWS no arrancaba en el minuto que espera Terraform con el equipo saturado (i3 con 8 GB). Falta que el workflow `infra` corra en GitHub.
 - **Pendientes con cuenta real:**
   - `terraform plan`.
   - Despliegue: arranque, volumen, secretos, HTTPS, ingesta de prueba y alarmas.
   - Compatibilidad de Compose v5.6.1 con el Docker 25.0.14 de AL2023 con el demonio en marcha.
-  - Pruebas de recuperación: reinicio, reemplazo de instancia, restauración de snapshot y de `pg_dump`, y rotación de secretos.
+  - Pruebas de recuperación: reinicio, reemplazo de instancia, restauración de snapshot y de `pg_dump` (con el cambio real de offsets de `--replay`), y rotación de secretos.
   - Medir RPO y RTO.
   - Repetir la carga de la etapa 6 en la instancia.
 - **Una sola instancia en una sola AZ.** La evolución a alta disponibilidad está descrita, no implementada.

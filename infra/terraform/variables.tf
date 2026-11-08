@@ -109,6 +109,11 @@ variable "availability_zone" {
   description = "Zona de disponibilidad. null = la primera zona de la región que ofrece instance_type."
   type        = string
   default     = null
+
+  validation {
+    condition     = var.availability_zone == null || can(regex("^[a-z]{2}(-gov)?-[a-z]+-[0-9][a-z]$", var.availability_zone))
+    error_message = "availability_zone debe ser null o una zona como us-east-1a (no se admite \"\")."
+  }
 }
 
 variable "allowed_cidrs" {

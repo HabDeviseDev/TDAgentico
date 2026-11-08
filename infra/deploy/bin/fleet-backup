@@ -1,35 +1,73 @@
 #!/bin/bash
 # Respaldo lógico de PostgreSQL/TimescaleDB (pg_dump formato custom).
 # Lo ejecuta fleet-backup.timer a diario; también se puede correr a mano.
-# Guarda en /data/backups (mismo volumen EBS: lo cubren los snapshots) y,
-# si hay bucket configurado, sube una copia a S3.
-# Limitación: el respaldo es consistente para la base, pero no está
-# coordinado con Kafka (ver docs/arquitectura-aws.md, "Consistencia").
+#
+# Cada respaldo son DOS archivos con el mismo identificador:
+#   fleet-<UTC>.dump       pg_dump -Fc de la base fleet
+#   fleet-<UTC>.meta.json  metadatos: checksum y tamaño del dump, y los
+#                          offsets confirmados del grupo de ingesta leídos
+#                          ANTES del dump (los usa fleet-restore --replay)
+# Se guardan en /data/backups (mismo volumen EBS: lo cubren los snapshots) y,
+# si hay bucket configurado, se suben ambos a s3://<bucket>/postgres/. Los
+# metadatos se suben después del dump: su presencia indica respaldo completo.
+#
+# Limitación: la base y Kafka no se capturan en el mismo instante (ver
+# docs/arquitectura-aws.md, "Consistencia entre PostgreSQL y Kafka").
 set -euo pipefail
 # shellcheck source=infra/deploy/lib.sh
-source /opt/fleet/current/infra/deploy/lib.sh
+source "${FLEET_LIB:-/opt/fleet/current/infra/deploy/lib.sh}"
 # shellcheck source=/dev/null
 source "$FLEET_ETC/deploy.env"
 
-stamp=$(date -u +%Y%m%dT%H%M%SZ)
+read -r stamp created_at < <(date -u '+%Y%m%dT%H%M%SZ %Y-%m-%dT%H:%M:%SZ')
+id="fleet-$stamp"
 dir="$FLEET_DATA_DIR/backups"
-file="$dir/fleet-$stamp.dump"
+dump="$dir/$id.dump"
+meta="$dir/$id.meta.json"
 umask 077
+mkdir -p "$dir"
 
-fleet_log "respaldo -> $file"
-# Socket local del contenedor (no requiere contraseña). pg_dump toma una
-# instantánea transaccional: no bloquea la ingesta.
-fleet_compose exec -T timescaledb pg_dump -U fleet -d fleet -Fc > "$file.partial"
-mv "$file.partial" "$file"
-# Registrar el instante del respaldo para una posible repetición desde Kafka.
-echo "$stamp" > "$file.time"
-fleet_log "tamaño: $(du -h "$file" | cut -f1)"
-
-if [ -n "${FLEET_BACKUP_BUCKET:-}" ]; then
-  aws s3 cp --region "$FLEET_REGION" --only-show-errors "$file" "s3://$FLEET_BACKUP_BUCKET/postgres/$(basename "$file")"
-  fleet_log "copiado a s3://$FLEET_BACKUP_BUCKET/postgres/"
+# 1. Offsets ANTES del dump. El consumidor confirma offsets solo después del
+#    COMMIT en la base, así que todo lo anterior a estos offsets ya está en la
+#    base cuando empieza pg_dump: reingresar desde aquí no pierde eventos (los
+#    repetidos se descartan por event_id).
+if offsets=$(fleet_kafka_committed_offsets); then
+  fleet_log "offsets de $FLEET_KAFKA_GROUP: $offsets"
+else
+  offsets=null
+  fleet_log "AVISO no se pudieron leer los offsets de $FLEET_KAFKA_GROUP; este respaldo no admitirá --replay"
 fi
 
-# Retención local.
-find "$dir" -name 'fleet-*.dump*' -mtime +"${FLEET_BACKUP_DAYS:-30}" -delete
-fleet_log "respaldo completo"
+# 2. Dump. Socket local del contenedor (no requiere contraseña). pg_dump toma
+#    una instantánea transaccional: no bloquea la ingesta.
+fleet_log "respaldo -> $dump"
+fleet_compose exec -T timescaledb pg_dump -U fleet -d fleet -Fc > "$dump.partial"
+[ -s "$dump.partial" ] || { echo "ERROR pg_dump produjo un archivo vacío" >&2; rm -f "$dump.partial"; exit 1; }
+mv "$dump.partial" "$dump"
+
+# 3. Metadatos (identifican el dump por nombre, tamaño y SHA-256).
+jq -n \
+  --arg id "$id" --arg created_at "$created_at" --arg dump_file "$id.dump" \
+  --arg sha "$(fleet_sha256 "$dump")" --argjson bytes "$(stat -c %s "$dump")" \
+  --arg group "$FLEET_KAFKA_GROUP" --arg topic "$FLEET_KAFKA_TOPIC" --argjson offsets "$offsets" \
+  '{format: 1, backup_id: $id, created_at: $created_at, database: "fleet",
+    dump_file: $dump_file, dump_sha256: $sha, dump_bytes: $bytes,
+    kafka: (if $offsets == null then null
+            else {group: $group, topic: $topic, captured: "before_dump", offsets: $offsets} end)}' \
+  > "$meta.partial"
+mv "$meta.partial" "$meta"
+fleet_log "tamaño: $(du -h "$dump" | cut -f1); metadatos: $meta"
+
+# 4. Copia a S3: primero el dump, después los metadatos.
+if [ -n "${FLEET_BACKUP_BUCKET:-}" ]; then
+  for f in "$dump" "$meta"; do
+    aws s3 cp --region "$FLEET_REGION" --only-show-errors "$f" "s3://$FLEET_BACKUP_BUCKET/postgres/$(basename "$f")"
+  done
+  fleet_log "copiados a s3://$FLEET_BACKUP_BUCKET/postgres/: $id.dump y $id.meta.json"
+fi
+
+# 5. Retención local (incluye los .dump.time de la versión anterior).
+find "$dir" -maxdepth 1 -type f \
+  \( -name 'fleet-*.dump' -o -name 'fleet-*.meta.json' -o -name 'fleet-*.dump.time' \) \
+  -mtime +"${FLEET_BACKUP_DAYS:-30}" -delete
+fleet_log "respaldo completo: $id"

@@ -199,9 +199,26 @@ flowchart TB
 | Mecanismo | Qué cubre | Frecuencia por defecto | Consistencia |
 |---|---|---|---|
 | Snapshots EBS (DLM) | Todo `/data`: Kafka, TimescaleDB, certificados y respaldos locales | Cada 24 h a las 03:00 UTC, se retienen 7 (`snapshot_interval_hours`, `snapshot_retain_count`) | **Consistente ante caídas**: equivale a cortar la energía. Como Kafka y TimescaleDB están en el mismo volumen, el snapshot captura a ambos en el mismo instante. PostgreSQL se recupera con su WAL; Kafka recupera sus segmentos al arrancar |
-| `pg_dump -Fc` (`fleet-backup`) | Solo la base `fleet` | Diario 02:30 UTC; local 30 días y copia opcional a S3 con caducidad (`backup_retention_days`) | Consistente para la base (una transacción). **No coordinado con Kafka** |
+| `pg_dump -Fc` (`fleet-backup`) | Solo la base `fleet`, más un archivo de metadatos (`.meta.json`) con el checksum del volcado y los offsets confirmados de `fleet-ingestion` | Diario 02:30 UTC; local 30 días y copia opcional a S3 con caducidad (`backup_retention_days`); a S3 suben los dos archivos | Consistente para la base (una transacción). Con Kafka, solo la coordinación aproximada que se describe abajo |
 
-**Límite de consistencia entre la base y Kafka:** un `pg_dump` restaurado no contiene lo que se ingirió después, pero los offsets del consumidor siguen adelante. `fleet-restore --replay` mueve el offset del grupo `fleet-ingestion` al instante del respaldo para reingresar desde Kafka; es seguro porque el consumidor deduplica por `event_id`. Solo alcanza lo que siga dentro de la retención de Kafka (la predeterminada del broker, 7 días, porque el Compose no la cambia). Lo anterior a esa ventana se pierde.
+### Consistencia entre PostgreSQL y Kafka
+
+Un `pg_dump` restaurado no contiene lo que se ingirió después, pero los offsets del consumidor siguen adelante. Si solo se restaura la base (`fleet-restore --no-replay`), esos eventos faltan aunque sigan en Kafka.
+
+`fleet-restore --replay` los reingresa:
+
+1. **Captura.** `fleet-backup` lee los offsets confirmados del grupo `fleet-ingestion` **antes** de empezar `pg_dump` y los guarda en los metadatos. El consumidor confirma offsets solo después del COMMIT en la base, así que todo lo anterior a esos offsets ya está en la instantánea.
+2. **Restauración.** `fleet-restore` fija el grupo en esos offsets. El consumidor vuelve a leer desde ahí.
+3. **Duplicados.** Lo que llegó entre la lectura de offsets y la instantánea ya está en la base y se descarta por `event_id`. La posición visible solo avanza si el evento es más reciente.
+
+No es una captura atómica de los dos sistemas. Límites:
+
+- **Retención de Kafka:** solo se reingresa lo que siga en el topic. La retención es la predeterminada del broker, 7 días, porque el Compose no la cambia. `fleet-restore` avisa si la retención ya borró offsets necesarios; lo anterior a esa ventana se pierde.
+- **DLQ:** los eventos inválidos que se reingresan vuelven a enviarse a `fleet.positions.dlq`. Allí quedan duplicados, porque la DLQ no deduplica.
+- **Sin offsets:** si Kafka no respondía durante el respaldo, los metadatos quedan con `kafka: null` y ese respaldo solo admite `--no-replay`. Lo mismo pasa si alguna partición aún no tenía offset confirmado.
+- **Escritores:** solo `consumer` escribe datos en la base; la API y el agente solo leen, y las migraciones crean el esquema. No hay escrituras fuera de Kafka que el replay pierda. Esto se comprobó en el código, no en una restauración real.
+- **Esquema:** la versión de TimescaleDB debe coincidir con la del respaldo. Después de restaurar se ejecutan las migraciones, que son idempotentes.
+- **Snapshots EBS:** no usan este mecanismo. Capturan Kafka y la base en el mismo instante, y por eso no necesitan replay.
 
 ### RPO y RTO
 
@@ -263,5 +280,5 @@ No se cobran recursos que esta configuración evita: NAT Gateway, balanceador, M
 - El primer despliegue con dominio puede terminar con aviso de HTTPS pendiente si el registro DNS aún no apunta a la IP.
 - Sin VPC Flow Logs (trivy lo informa como MEDIUM). Se pueden agregar enviándolos a CloudWatch Logs o S3, con su costo.
 - Docker viene del paquete de Amazon Linux 2023 (25.0.14 al validar) y Compose v5.6.1 se instala aparte. Su funcionamiento conjunto con el demonio en marcha no se probó; `compose_version` permite fijar otra versión.
-- `terraform validate` no pudo completarse en el equipo de desarrollo por limitaciones del entorno (ver infra/README.md). Queda pendiente en CI.
+- `terraform validate` pasó en el equipo de desarrollo, tras fallar en una primera ronda por limitaciones del entorno (ver infra/README.md). El workflow de CI aún no corrió en GitHub.
 - No se validó nada contra una cuenta real: ni el plan, ni el despliegue, ni las pruebas de recuperación.

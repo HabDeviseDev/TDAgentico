@@ -19,6 +19,13 @@ resource "aws_subnet" "public" {
   availability_zone       = local.availability_zone
   map_public_ip_on_launch = false # la IP pública la da la EIP o la instancia explícitamente
   tags                    = { Name = "${local.name}-public-${local.availability_zone}" }
+
+  lifecycle {
+    precondition {
+      condition     = local.availability_zone != null
+      error_message = "Ninguna zona de la región ofrece instance_type: elija otro tipo o fije availability_zone."
+    }
+  }
 }
 
 resource "aws_route_table" "public" {

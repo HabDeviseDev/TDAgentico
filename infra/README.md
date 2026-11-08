@@ -8,6 +8,7 @@ Terraform y scripts para desplegar el MVP en **una instancia EC2 con Docker Comp
 infra/
 ├── terraform/                 # red, instancia, IAM, volumen, snapshots, alarmas
 │   ├── templates/             # user_data, instalación de Docker, fleet-deploy
+│   ├── modules/deploy-config/ # deploy.env sin proveedores, con terraform test
 │   ├── terraform.tfvars.example
 │   └── backend.tf.example     # estado remoto en S3 (recomendado)
 ├── deploy/                    # lo que corre en la instancia
@@ -19,6 +20,7 @@ infra/
 │   └── systemd/               # temporizadores de salud y respaldo
 └── scripts/
     ├── validate.sh            # validación sin credenciales (local y CI)
+    ├── render-user-data/      # renderiza user_data sin el proveedor de AWS
     └── check_compose_ports.py # el override no deja puertos internos publicados
 ```
 
@@ -257,27 +259,55 @@ Todo como root en una sesión de SSM (`sudo -i`).
 **Respaldos automáticos:**
 
 - **Snapshots EBS:** de todo `/data`, según `snapshot_interval_hours` y `snapshot_retain_count`.
-- **`pg_dump -Fc`:** diario a las 02:30 UTC, en `/data/backups` y, con `backup_bucket_enabled`, en `s3://<bucket>/postgres/`.
+- **`pg_dump -Fc` con metadatos:** diario a las 02:30 UTC, en `/data/backups` y, con `backup_bucket_enabled`, en `s3://<bucket>/postgres/`. Cada respaldo son dos archivos con el mismo identificador:
+  - `fleet-<UTC>.dump`: el volcado de la base `fleet`.
+  - `fleet-<UTC>.meta.json`: tamaño y SHA-256 del volcado, y los offsets confirmados del grupo `fleet-ingestion`, leídos **antes** del volcado. Son los que usa `--replay`. Si Kafka no respondió, `kafka` queda en `null` y ese respaldo solo admite `--no-replay`.
 
-Sus límites de consistencia están en [docs/arquitectura-aws.md](../docs/arquitectura-aws.md#respaldos).
+  A S3 se sube primero el volcado y después los metadatos: si existen los metadatos, el respaldo se completó.
+
+Sus límites de consistencia están en [docs/arquitectura-aws.md](../docs/arquitectura-aws.md#consistencia-entre-postgresql-y-kafka).
 
 ### Restaurar la base desde un respaldo lógico
 
+El modo es obligatorio y explícito:
+
 ```bash
-sudo fleet-restore /data/backups/fleet-20261108T023000Z.dump --yes --replay
-# o desde S3:
+# Restaurar y reingresar desde Kafka lo posterior al respaldo (exige metadatos válidos):
 sudo fleet-restore s3://<bucket>/postgres/fleet-20261108T023000Z.dump --yes --replay
+# Solo restaurar la base; lo ingerido después del respaldo no se recupera:
+sudo fleet-restore /data/backups/fleet-20261108T023000Z.dump --yes --no-replay
 ```
 
-**Qué hace:**
+Los metadatos se buscan junto al volcado (`fleet-<UTC>.meta.json`, en la misma carpeta o prefijo de S3).
+
+**Fase 1, sin cambios.** Si algo falla, termina con `No se detuvo ningún servicio ni se modificó la base.`:
+
+1. Descarga el volcado y, si existen, sus metadatos.
+2. Si hay metadatos, comprueba que sean del mismo respaldo: identificador, nombre, tamaño y SHA-256 del volcado. Si no coinciden, falla en los dos modos.
+3. Con `--replay`, además:
+   - Exige metadatos.
+   - Exige offsets válidos: enteros no negativos, sin particiones repetidas, del grupo `fleet-ingestion` y el topic `fleet.positions.v1`.
+   - Comprueba que Kafka responda y que existan esas particiones.
+   - Avisa si la retención de Kafka ya borró parte de lo que habría que reingresar.
+4. Con `--no-replay` y sin metadatos, avisa de que no puede verificar el checksum y continúa.
+5. Valida el archivo con `pg_restore --list`.
+
+**Fase 2, destructiva:**
 
 1. Detiene `api`, `consumer` y `agent`.
 2. Recrea la base `fleet`.
 3. Ejecuta `timescaledb_pre_restore()`, `pg_restore` y `timescaledb_post_restore()`.
-4. Con `--replay`, mueve el offset del consumidor al instante del respaldo.
+4. Con `--replay`, fija los offsets de `fleet-ingestion` a los de los metadatos (`kafka-consumer-groups --reset-offsets --from-file`). El grupo está inactivo porque `consumer` está detenido.
 5. Aplica las migraciones y levanta los servicios.
 
-La versión de TimescaleDB debe ser la misma que la del respaldo. **Pruébalo primero en otro entorno: no se ejecutó contra una instancia real.**
+Si la fase 2 falla, el error lo indica: los escritores pueden quedar detenidos y se puede repetir el comando.
+
+La versión de TimescaleDB debe ser la misma que la del respaldo. Los límites de consistencia están en [docs/arquitectura-aws.md](../docs/arquitectura-aws.md#consistencia-entre-postgresql-y-kafka).
+
+**Verificación:**
+
+- Hecha: pruebas con AWS CLI y Compose simulados (`validate.sh backup`) y formatos de las herramientas de Kafka contra un broker local (ver Resultados).
+- Pendiente: una restauración real contra una instancia. Pruébalo primero en otro entorno.
 
 ### Restaurar desde un snapshot
 
@@ -319,31 +349,33 @@ terraform destroy
 
 | Nivel | Qué demuestra | Estado |
 |---|---|---|
-| Sintáctica y estática | Terraform con formato e inicializado; plantilla de `user_data` renderizada y revisada; scripts sin errores de shell; Compose renderiza; el override no publica puertos internos; Caddyfile válido; instalación de Docker, Compose y Buildx en Amazon Linux 2023 | **Hecha en local**, salvo `terraform validate` (ver abajo). El workflow de CI la ejecuta completa, pero aún no corrió en GitHub |
+| Sintáctica, estática y con simuladores | Terraform con formato e inicializado; expresiones de `deploy.env` probadas con `terraform test`; plantilla de `user_data` renderizada y revisada con y sin opciones; respaldo y restauración probados con AWS CLI y Compose simulados; scripts sin errores de shell; Compose renderiza; el override no publica puertos internos; Caddyfile válido; instalación de Docker, Compose y Buildx en Amazon Linux 2023 | **Hecha en local**, incluido `terraform validate` desde la corrección de opciones (ver abajo). El workflow de CI la ejecuta completa, pero aún no corrió en GitHub |
 | Plan con proveedor y cuenta reales | Permisos, cuotas, disponibilidad del tipo de instancia en la región, AMI resuelta, nombres sin conflicto | Pendiente |
 | Despliegue real | Arranque, montaje del volumen, lectura de secretos, compilación, HTTPS, ingesta de prueba, métricas y alarmas | Pendiente |
-| Pruebas de recuperación | Reinicio, reemplazo de instancia, restauración de snapshot y de `pg_dump`, rotación de secretos, RPO/RTO | Pendiente |
+| Pruebas de recuperación | Reinicio, reemplazo de instancia, restauración de snapshot y de `pg_dump` (con y sin replay, incluido el cambio real de offsets), rotación de secretos, RPO/RTO | Pendiente |
 
 ### Validación local
 
 Requiere solo Docker:
 
 ```bash
-infra/scripts/validate.sh all      # o un objetivo: terraform, user_data, tflint, trivy, shell, compose, caddy, install
+infra/scripts/validate.sh all      # o un objetivo: terraform, tftest, user_data, tflint, trivy, shell, compose, backup, caddy, install
 ```
 
 | Objetivo | Qué ejecuta |
 |---|---|
-| `terraform` | `fmt -check`, `init -backend=false` con el lockfile en solo lectura, `validate` y luego `user_data` |
-| `user_data` | Renderiza la plantilla real con valores ficticios (con y sin `auto_deploy`), sin proveedor de AWS. Comprueba que comprimida no supere los 16 KB de EC2 y pasa el resultado por `bash -n` y `shellcheck` |
+| `terraform` | `fmt -check` (también de `render-user-data`), `init -backend=false` con el lockfile en solo lectura, `validate`, luego `tftest` y `user_data` |
+| `tftest` | `terraform test` de `modules/deploy-config`, el módulo sin proveedores que arma `/etc/fleet/deploy.env`. Prueba las expresiones reales con las opciones ausentes (`null` → `""`), configuradas y mixtas, y que el secreto de PostgreSQL sea obligatorio |
+| `user_data` | Renderiza la plantilla real con valores ficticios, sin proveedor de AWS, en 4 casos: opciones ausentes y configuradas, cada una con y sin `auto_deploy`. Comprueba los valores de `deploy.env` en cada caso, que comprimida no supere los 16 KB de EC2, y pasa el resultado por `bash -n` y `shellcheck` |
+| `backup` | `fleet-backup` y `fleet-restore` reales con AWS CLI y Docker Compose simulados ([tests/unit/test_fleet_backup_restore.py](../tests/unit/test_fleet_backup_restore.py)), en un contenedor Alpine con `bash` y `jq`. Cubre: subida de volcado y metadatos, metadatos ausentes o inválidos, restauración con y sin replay, y que no haya acciones destructivas si falla la validación previa |
 | `tflint` | Reglas recomendadas del lenguaje Terraform |
 | `trivy` | Errores de configuración HIGH y CRITICAL, con los valores por defecto y con todos los recursos opcionales (`infra/scripts/trivy-all-features.tfvars`). Las excepciones aceptadas están justificadas en `infra/terraform/.trivyignore.yaml` |
-| `shell` | `bash -n` y `shellcheck` de los 9 scripts |
+| `shell` | `bash -n` y `shellcheck` de los 9 scripts (incluido `validate.sh`) |
 | `compose` | `docker compose config` del Compose local más el override (todos los perfiles) y `check_compose_ports.py` |
 | `caddy` | `caddy validate`, con y sin dominio |
 | `install` | `install-docker.sh` en un contenedor `amazonlinux:2023`: paquetes, checksums de Compose y Buildx, versiones |
 
-El workflow [`.github/workflows/infra.yml`](../.github/workflows/infra.yml) corre lo mismo en cada PR que toque `infra/`, sin credenciales, además de las pruebas de `check_compose_ports.py`.
+El workflow [`.github/workflows/infra.yml`](../.github/workflows/infra.yml) corre lo mismo en cada PR que toque `infra/` o esas pruebas, sin credenciales, además de las pruebas de `check_compose_ports.py`.
 
 ### Resultados (2026-11-08, en este equipo)
 
@@ -351,8 +383,8 @@ El workflow [`.github/workflows/infra.yml`](../.github/workflows/infra.yml) corr
 |---|---|
 | `terraform fmt -check -recursive` | OK |
 | `terraform init -backend=false` | OK (`hashicorp/aws` 6.72.0) |
-| `terraform validate` | **No se pudo completar en este equipo**, por dos causas del entorno (no del código). **Pendiente: que pase en CI o en otra máquina.** <ul><li>En Docker, el proveedor (805 MB) no arrancó en el minuto que Terraform espera: medido, entre 31 s y 855 s solo para `--help`. El equipo tiene un i3-4130T con 8 GB y menos de 1 GB libre.</li><li>Con Terraform nativo de Windows, el proveedor arrancó, pero el canal TLS local con el plugin falló con `certificate signed by unknown authority`, compatible con la inspección TLS de la red.</li></ul> |
-| Plantilla de `user_data` | OK: 39 y 37 líneas; 5.608 y 5.568 bytes comprimida en base64 (límite: 16.384); `bash -n` y `shellcheck` sin hallazgos; los scripts incrustados son idénticos a los fuentes y no hay valores secretos |
+| `terraform validate` | En esa primera ronda **no se pudo completar en este equipo**, por dos causas del entorno (no del código). Pasó después, en la ronda de la corrección (ver abajo). <ul><li>En Docker, el proveedor (805 MB) no arrancó en el minuto que Terraform espera: medido, entre 31 s y 855 s solo para `--help`. El equipo tiene un i3-4130T con 8 GB y menos de 1 GB libre.</li><li>Con Terraform nativo de Windows, el proveedor arrancó, pero el canal TLS local con el plugin falló con `certificate signed by unknown authority`, compatible con la inspección TLS de la red.</li></ul> |
+| Plantilla de `user_data` | OK: 39 y 37 líneas; 5.608 y 5.568 bytes comprimida en base64 (límite: 16.384); `bash -n` y `shellcheck` sin hallazgos; los scripts incrustados son idénticos a los fuentes y no hay valores secretos. Repetida tras la corrección de opciones (ver abajo) |
 | `tflint` 0.65.0 | OK (corregido: un `data` sin usar) |
 | `trivy config` 0.76.2 | OK con dos excepciones justificadas: salida 443 a Internet y tema SNS sin cifrar. Se eliminó la salida por el puerto 80. Hallazgo MEDIUM no bloqueante: VPC sin Flow Logs |
 | `shellcheck` 0.11.0 y `bash -n` | OK, 9 scripts |
@@ -361,3 +393,16 @@ El workflow [`.github/workflows/infra.yml`](../.github/workflows/infra.yml) corr
 | Suite unitaria del repositorio | 209 pasadas y 1 fallida (`test_agent_chat.py::test_selecciona_y_ejecuta_la_herramienta_real`). Esa prueba pasó sola y en dos repeticiones de su archivo (22/22). Es intermitente con el equipo saturado y esta etapa no toca el agente |
 | `caddy validate` 2.11.9 | OK con `:80`, con dominio y con correo vacío |
 | Instalación en `amazonlinux:2023` | OK: Docker 25.0.14 (paquete de AL2023), Compose v5.6.1 y Buildx v0.38.1 con checksum verificado. **No se arrancó el demonio**: falta comprobar en EC2 que Compose v5.6.1 funcione con el motor 25.0.14 |
+
+### Resultados de la corrección de opciones y respaldos (2026-11-08, en este equipo)
+
+| Comprobación | Resultado |
+|---|---|
+| Error corregido | Con Terraform 1.17.1, `coalesce(null, "")` falla con `no non-null, non-empty-string arguments`: `coalesce` descarta tanto `null` como `""`. Afectaba a `acme_email`, `anthropic_secret_arn` y `git_token_secret_arn` cuando no se configuraban, que es su valor por defecto. Ahora `modules/deploy-config` usa `valor == null ? "" : valor`. La zona de disponibilidad también usa una comparación explícita, y una validación rechaza `""` |
+| `terraform fmt -check -recursive` | OK en `infra/terraform` (incluido el módulo) y en `infra/scripts/render-user-data` |
+| `terraform init -backend=false` + `validate` | **OK: `Success! The configuration is valid.`** Con `hashicorp/aws` 6.72.0 del lockfile, en Docker, con el stack local detenido. El objetivo `terraform` completo (fmt, init, validate, test y `user_data`) tardó 201 s. Antes fallaba porque el proveedor no arrancaba dentro del plazo con el equipo saturado; esta vez sí arrancó. Es la misma configuración más esta corrección |
+| `terraform test` (`modules/deploy-config`) | OK, 4 de 4: opciones ausentes, configuradas, mixtas y secreto de PostgreSQL obligatorio |
+| Plantilla de `user_data` | OK en los 4 casos. Sin opciones: las cuatro variables opcionales quedan en `''` y el sitio en `:80`. Con opciones: se copian. 39/37 líneas; entre 5.552 y 5.640 bytes comprimida; `bash -n` y `shellcheck` sin hallazgos |
+| `validate.sh backup` | OK, 33 pruebas |
+| Formatos de Kafka contra un broker real | Con el Kafka 3.8.1 del stack local (grupo inactivo) se comprobaron las funciones de `lib.sh`: `fleet_kafka_committed_offsets` leyó los offsets confirmados de las 3 particiones, `fleet_kafka_partitions` devolvió 0, 1 y 2, y `fleet_kafka_earliest_offsets` devolvió los offsets más antiguos. El mismo comando de `fleet-restore` con `--from-file`, pero con `--dry-run` en lugar de `--execute`, aceptó el CSV y mostró los offsets esperados. **No se ejecutó el cambio real de offsets** (`--execute`) ni `pg_dump`/`pg_restore` contra una base real. Kafka se volvió a detener |
+| `tflint`, `trivy` (dos modos), `shellcheck` (9 scripts), `compose` + puertos | OK |

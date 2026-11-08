@@ -13,30 +13,36 @@ locals {
   # La AMI sigue la arquitectura del tipo de instancia (Graviton = arm64).
   architecture = contains(data.aws_ec2_instance_type.selected.supported_architectures, "arm64") ? "arm64" : "x86_64"
 
-  availability_zone = coalesce(var.availability_zone, sort(data.aws_ec2_instance_type_offerings.in_region.locations)[0])
+  # null = la primera zona (en orden alfabético) que ofrece instance_type.
+  # Comparación explícita con null (variables.tf rechaza ""). Si ninguna zona
+  # ofrece el tipo, queda null y la precondición de aws_subnet.public falla
+  # con un mensaje claro.
+  offered_zones     = sort(data.aws_ec2_instance_type_offerings.in_region.locations)
+  availability_zone = var.availability_zone != null ? var.availability_zone : (length(local.offered_zones) > 0 ? local.offered_zones[0] : null)
 
-  https_enabled = var.domain_name != null
-  site_address  = local.https_enabled ? var.domain_name : ":80"
+  # Opciones derivadas y /etc/fleet/deploy.env: ver modules/deploy-config.
+  https_enabled = module.deploy_config.https_enabled
+  secret_arns   = module.deploy_config.secret_arns
+  deploy_env    = module.deploy_config.deploy_env
+}
 
-  secret_arns = compact([var.postgres_secret_arn, var.anthropic_secret_arn, var.git_token_secret_arn])
+# Sin proveedores: sus expresiones se prueban con `terraform test`.
+module "deploy_config" {
+  source = "./modules/deploy-config"
 
-  # Configuración NO secreta que la instancia usa para desplegar. Los valores
-  # secretos se leen durante el despliegue desde Secrets Manager.
-  deploy_env = {
-    FLEET_ENVIRONMENT    = var.environment
-    FLEET_REGION         = var.region
-    FLEET_REPO_URL       = var.repo_url
-    FLEET_GIT_REVISION   = var.git_revision
-    FLEET_SITE_ADDRESS   = local.site_address
-    FLEET_ACME_EMAIL     = coalesce(var.acme_email, "")
-    FLEET_PG_SECRET_ARN  = var.postgres_secret_arn
-    FLEET_LLM_SECRET_ARN = coalesce(var.anthropic_secret_arn, "")
-    FLEET_GIT_SECRET_ARN = coalesce(var.git_token_secret_arn, "")
-    FLEET_DATA_VOLUME_ID = aws_ebs_volume.data.id
-    FLEET_BACKUP_BUCKET  = var.backup_bucket_enabled ? aws_s3_bucket.backups[0].bucket : ""
-    FLEET_BACKUP_DAYS    = tostring(var.backup_retention_days)
-    FLEET_METRIC_NS      = local.metric_ns
-  }
+  environment           = var.environment
+  region                = var.region
+  repo_url              = var.repo_url
+  git_revision          = var.git_revision
+  domain_name           = var.domain_name
+  acme_email            = var.acme_email
+  postgres_secret_arn   = var.postgres_secret_arn
+  anthropic_secret_arn  = var.anthropic_secret_arn
+  git_token_secret_arn  = var.git_token_secret_arn
+  data_volume_id        = aws_ebs_volume.data.id
+  backup_bucket         = var.backup_bucket_enabled ? aws_s3_bucket.backups[0].bucket : null
+  backup_retention_days = var.backup_retention_days
+  metric_namespace      = local.metric_ns
 }
 
 data "aws_partition" "current" {}
