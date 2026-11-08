@@ -1,0 +1,104 @@
+# 07-portal-tipos-build-vitest
+# inicio: 2026-11-08T17:21:50Z
+# comando: docker build --no-cache --progress=plain --target test services/portal
+
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile:
+#1 transferring dockerfile: 687B 0.7s done
+#1 DONE 1.6s
+
+#2 [internal] load metadata for docker.io/library/node:20.18-alpine
+#2 DONE 1.6s
+
+#3 [internal] load .dockerignore
+#3 transferring context:
+#3 transferring context: 58B 0.1s done
+#3 DONE 0.6s
+
+#4 [internal] load build context
+#4 DONE 0.0s
+
+#5 [build 1/6] FROM docker.io/library/node:20.18-alpine@sha256:053c1d99e608fe9fa0db6821edd84276277c0a663cd181f4a3e59ee20f5f07ea
+#5 resolve docker.io/library/node:20.18-alpine@sha256:053c1d99e608fe9fa0db6821edd84276277c0a663cd181f4a3e59ee20f5f07ea
+#5 resolve docker.io/library/node:20.18-alpine@sha256:053c1d99e608fe9fa0db6821edd84276277c0a663cd181f4a3e59ee20f5f07ea 0.9s done
+#5 DONE 1.0s
+
+#6 [build 2/6] WORKDIR /app
+#6 CACHED
+
+#4 [internal] load build context
+#4 transferring context: 1.53kB 0.0s done
+#4 DONE 0.5s
+
+#7 [build 3/6] COPY package.json package-lock.json ./
+#7 DONE 2.9s
+
+#8 [build 4/6] RUN npm ci --no-audit --no-fund
+#8 101.8 npm notice
+#8 101.8 npm notice New major version of npm available! 10.8.2 -> 12.2.2
+#8 101.8 npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.2
+#8 101.8 npm notice To update run: npm install -g npm@12.2.2
+#8 101.8 npm notice
+#8 101.8 
+#8 101.8 added 104 packages in 42s
+#8 DONE 105.5s
+
+#9 [build 5/6] COPY . .
+#9 DONE 5.9s
+
+#10 [build 6/6] RUN npm run build
+#10 4.026 
+#10 4.026 > fleet-portal@1.0.0 build
+#10 4.026 > tsc --noEmit -p . && vite build
+#10 4.026 
+#10 18.10 vite v5.4.11 building for production...
+#10 18.26 transforming...
+#10 24.92 ✓ 90 modules transformed.
+#10 26.77 rendering chunks...
+#10 26.90 computing gzip size...
+#10 27.00 dist/index.html                   0.41 kB │ gzip:   0.27 kB
+#10 27.00 dist/assets/index-CR3dqkCX.css   27.18 kB │ gzip:   9.26 kB
+#10 27.00 dist/assets/index-D2LsiU08.js   325.64 kB │ gzip: 100.96 kB
+#10 27.00 ✓ built in 8.81s
+#10 DONE 28.4s
+
+#11 [test 1/1] RUN npm test
+#11 3.264 
+#11 3.264 > fleet-portal@1.0.0 test
+#11 3.264 > vitest run
+#11 3.264 
+#11 4.063 
+#11 4.064  RUN  v2.1.8 /app
+#11 4.065 
+#11 6.335  ✓ src/state/alertsState.test.ts (6 tests) 121ms
+#11 6.350  ✓ src/state/fleetState.test.ts (6 tests) 159ms
+#11 6.388  ✓ src/lib/chatFormat.test.ts (4 tests) 97ms
+#11 7.734  ✓ src/lib/duration.test.ts (3 tests) 18ms
+#11 7.952  ✓ src/lib/freshness.test.ts (4 tests) 34ms
+#11 7.989 
+#11 8.002  Test Files  5 passed (5)
+#11 8.004       Tests  23 passed (23)
+#11 8.004    Start at  17:24:35
+#11 8.004    Duration  3.92s (transform 1.39s, setup 0ms, collect 2.54s, tests 429ms, environment 4ms, prepare 2.57s)
+#11 8.004 
+#11 DONE 8.9s
+
+#12 exporting to image
+#12 exporting layers
+#12 exporting layers 14.8s done
+#12 exporting manifest sha256:72eacc3db0374296741187c5f3ca4256e0a4eaaeffb335aa63f1ce1674139f3d
+#12 exporting manifest sha256:72eacc3db0374296741187c5f3ca4256e0a4eaaeffb335aa63f1ce1674139f3d 0.6s done
+#12 exporting config sha256:f50e4793c85196ce4358f76d86bd895c9a79cb879e5f350757f7a8df92221f8b
+#12 exporting config sha256:f50e4793c85196ce4358f76d86bd895c9a79cb879e5f350757f7a8df92221f8b 0.9s done
+#12 exporting attestation manifest sha256:0a8f4266b4155d15ed887b50641c1a91b68f7ac1e92d704c2eaa9125aebe17ce
+#12 exporting attestation manifest sha256:0a8f4266b4155d15ed887b50641c1a91b68f7ac1e92d704c2eaa9125aebe17ce 0.7s done
+#12 exporting manifest list sha256:dd170d7e0dda20acae6ed4c6cd94478150bf5d68e8a1d01f3cea47d6fa3afd25
+#12 exporting manifest list sha256:dd170d7e0dda20acae6ed4c6cd94478150bf5d68e8a1d01f3cea47d6fa3afd25 0.4s done
+#12 naming to moby-dangling@sha256:dd170d7e0dda20acae6ed4c6cd94478150bf5d68e8a1d01f3cea47d6fa3afd25 0.1s done
+#12 unpacking to moby-dangling@sha256:dd170d7e0dda20acae6ed4c6cd94478150bf5d68e8a1d01f3cea47d6fa3afd25
+#12 unpacking to moby-dangling@sha256:dd170d7e0dda20acae6ed4c6cd94478150bf5d68e8a1d01f3cea47d6fa3afd25 16.6s done
+#12 DONE 35.3s
+
+# fin: 2026-11-08T17:25:21Z  código: 0  duración: 211 s

@@ -1,15 +1,7 @@
 # TDAgentico
 Telemetría y Desarrollo Agéntico Extremo
 
-MVP de monitoreo de flotas.
-
-- **Etapa 1:** ingesta de posiciones.
-- **Etapa 2:** portal en tiempo real con la última posición de cada vehículo.
-- **Etapa 3:** zonas críticas y alertas de detención dentro de ellas.
-- **Etapa 4:** agente operativo (LangChain) con chat en el portal y herramientas de solo lectura.
-- **Etapa 5:** app del conductor (React Native + Expo + SQLite) que funciona sin conexión e ingesta por lotes.
-- **Etapa 6:** pruebas de carga reproducibles (k6), reconciliación final y caos controlado.
-- **Etapa 7:** infraestructura en AWS (Terraform + una instancia EC2 con Docker Compose), validada sin credenciales; los recursos aún no se crearon.
+MVP de monitoreo de flotas, construido con Claude Code. Los vehículos (un simulador o una app móvil sin conexión) envían posiciones a una API que las publica en Kafka. Un consumidor las guarda en TimescaleDB. Un portal web muestra el mapa en tiempo real (SSE) con alertas de detención en zonas críticas, y un agente de IA responde preguntas sobre la flota con herramientas de solo lectura. Incluye pruebas de carga y caos con reconciliación, e infraestructura AWS en Terraform validada sin credenciales.
 
 ```
 POST /v1/positions ──► FastAPI ──(acks=all)──► Kafka: fleet.positions.v1 ──► consumidor ──(1 transacción)──► TimescaleDB
@@ -22,39 +14,183 @@ Chat: navegador ──POST /v1/chat──► nginx (portal) ──► agente (La
 Móvil: GPS ──► SQLite (cola local) ──POST /v1/positions/batch──► API ──► Kafka ──► …
 ```
 
+**Para evaluar:**
+
+- [Matriz de cumplimiento](docs/entrega.md): cada requisito con su implementación, comando, evidencia y nivel de verificación.
+- [Demostración paso a paso](docs/demo.md).
+- [Guion del video](docs/guion-video.md).
+- [Entorno agéntico](docs/entorno-agentico.md).
+- [Auditoría de IA](docs/auditoria-ia.md).
+- [Verificación final](docs/verificacion/2026-11-08/).
+
+## Requisitos del equipo
+
+| Necesario | Detalle |
+|---|---|
+| Docker con Compose v2 | Verificado con Docker 29.9.2 y Compose v5.6.1 (Docker Desktop en Windows). No hace falta Python ni Node en el host: pruebas, portal y app se ejecutan en contenedores |
+| Recursos para Docker | Todo se ejecutó con **4 CPU y 3,78 GiB** asignados a Docker. Con menos no se probó. Con el stack levantado, Kafka usa mucha CPU incluso sin carga |
+| Puertos libres | 8088 (portal, `PORTAL_PORT`), 8000 (API), 8100 (agente, `AGENT_PORT`), 5432 (TimescaleDB) y 9094 (Kafka desde el host) |
+| Internet en la primera construcción | Descarga de imágenes y dependencias de `pip` y `npm` |
+| En Windows | Git Bash para los scripts (`loadtest/*.sh`, `infra/scripts/validate.sh`, `scripts/verificacion_final.sh`) |
+| Opcional | Clave de Anthropic para el chat (`.env`); Node 22.13+ y Expo Go (SDK 58) para la app en Android; cuenta de Expo para EAS; cuenta de AWS para desplegar |
+
 ## Inicio rápido
 
-```bash
-docker compose up -d --build --wait
-```
+1. Levanta el stack. La primera vez construye las imágenes y espera a que todo esté sano:
 
-```bash
-docker compose --profile demo up -d simulator
-```
+   ```bash
+   docker compose up -d --build --wait
+   ```
 
-Abre el portal en **http://localhost:8088**. Para detener el simulador de forma limpia:
+2. Abre el portal en **http://localhost:8088**.
+3. Genera tráfico con el simulador (8 vehículos alrededor de Bogotá):
 
-```bash
-docker compose --profile demo stop simulator
-```
+   ```bash
+   docker compose --profile demo up -d simulator
+   ```
 
-Escenarios de demostración de alertas (Ctrl+C para terminar; ver "Demostración de alertas"):
+4. Cuando termines, detén sin borrar datos:
 
-```bash
-docker compose --profile demo run --rm demo-alerts
-```
+   ```bash
+   docker compose --profile demo stop simulator
+   ```
 
-Para usar el asistente del portal (botón "Asistente"), configura la credencial del proveedor en `.env` y recrea el servicio `agent` (ver "Agente operativo y chat"):
+   ```bash
+   docker compose stop
+   ```
+
+Servicios del `docker-compose.yml`:
+
+- `kafka`, `kafka-init` (crea los topics), `timescaledb` y `migrate` (aplica `db/migrations`).
+- `api`, `consumer`, `agent` y `portal` (nginx con la SPA y proxy a la API y al agente).
+- Perfil `demo`: `simulator` y `demo-alerts`.
+- Perfil `test`: `tests`.
+
+### Sin credencial del modelo
+
+No hace falta configurar nada para el resto del sistema:
+
+- **Funcionan igual:** el portal, el mapa, el SSE, las alertas, la ingesta (individual y por lotes), el simulador y la app móvil.
+- **El agente arranca** y responde así:
+  - `GET /v1/chat/status` devuelve `configured: false` con el motivo, sin mostrar ningún valor.
+  - `POST /v1/chat` responde `503` con `status: "not_configured"`.
+  - El panel "Asistente" del portal muestra "El agente requiere configuración" con el envío deshabilitado.
+- **El circuit breaker** se puede demostrar sin modelo con `GET /v1/chat/fleet-check`.
+
+Para activar el chat:
 
 ```bash
 cp .env.example .env
 ```
 
+Completa `ANTHROPIC_API_KEY` y recrea el agente:
+
 ```bash
 docker compose up -d agent
 ```
 
-Sin credencial todo lo demás funciona y el chat informa que el agente requiere configuración.
+Ver "Agente operativo y chat".
+
+## Demostración corta (unos 5 minutos)
+
+Con el stack y el simulador levantados:
+
+1. **Mapa en vivo:** en http://localhost:8088 se mueven los vehículos. Selecciona uno: el detalle se actualiza sin recargar.
+2. **Alerta y evento atrasado:**
+
+   ```bash
+   docker compose --profile demo run --rm demo-alerts --once
+   ```
+
+   `…-ZONA25` queda con alerta. `…-ATRASADO` tiene alerta y la pierde cuando llega un movimiento de hace 12 min. `…-SINDATOS` queda como evidencia insuficiente. El panel de alertas del portal lo muestra en vivo.
+
+3. **Circuit breaker**, sin credencial: `docker compose stop api`, luego `curl -s localhost:8088/v1/chat/fleet-check` dos veces (la segunda responde al instante con `circuit_open`), y `docker compose start api`.
+
+La versión completa está en [docs/demo.md](docs/demo.md): persistencia y sincronización móvil, recuperación de Kafka, chat con proveedor real e infraestructura AWS, cada paso con su resultado esperado.
+
+## Pruebas y verificación
+
+| Qué | Comando |
+|---|---|
+| Unitarias y aceptación, con el stack levantado | `docker compose --profile test run --rm tests -v` |
+| Solo unitarias, sin stack | `docker compose --profile test run --rm --no-deps tests tests/unit -v` |
+| Portal: tipos, build y Vitest | `docker build --no-cache --target test services/portal` |
+| App móvil: tipos, pruebas y bundle Android | Ver "Pruebas de la app" |
+| Infraestructura, sin credenciales | `infra/scripts/validate.sh all` |
+| Carga y caos | Ver "Pruebas de carga y caos" |
+| Todo, guardando las salidas | `scripts/verificacion_final.sh` → `docs/verificacion/<fecha>/` |
+
+Los resultados del cierre (commit, comandos, fecha, fallos y pruebas omitidas) están en [docs/entrega.md](docs/entrega.md#verificación-final-2026-11-08). El detalle de cada prueba está en "Pruebas".
+
+## Documentación
+
+| Documento | Contenido |
+|---|---|
+| Este README, desde "Estructura" | Detalle técnico por componente: contratos, garantías, portal, alertas, agente, app móvil, simulador, pruebas, carga y caos, limitaciones por etapa |
+| [docs/entrega.md](docs/entrega.md) | Matriz de cumplimiento, pendientes y verificación final |
+| [docs/demo.md](docs/demo.md) | Demostración reproducible con resultados esperados |
+| [docs/guion-video.md](docs/guion-video.md) | Guion de la exposición, de unos 9 minutos |
+| [docs/entorno-agentico.md](docs/entorno-agentico.md) | Cómo se trabajó con Claude Code: contexto, etapas, revisión y pruebas |
+| [CLAUDE.md](CLAUDE.md) | Instrucciones del proyecto para Claude Code (agregado en el cierre) |
+| [docs/auditoria-ia.md](docs/auditoria-ia.md) | Registro completo de decisiones, errores y verificaciones de la IA |
+| [docs/arquitectura-aws.md](docs/arquitectura-aws.md) e [infra/README.md](infra/README.md) | Arquitectura y operación en AWS |
+| [loadtest/reports/2026-11-07/](loadtest/reports/2026-11-07/) | Reportes de carga y caos |
+
+## Auditoría de IA: casos para evaluar
+
+Cuatro casos reales del [registro completo](docs/auditoria-ia.md). En cada uno, el enfoque inicial lo generó la IA (Claude Code) y la corrección queda en un commit propio.
+
+### 1. Kafka sin almacenamiento persistente
+
+- **Enfoque inicial de la IA** (`968db25`, etapa 1): Kafka sin volumen. La imagen `apache/kafka:3.8.1` guarda por defecto en `/tmp/kraft-combined-logs`, dentro del contenedor.
+- **Problema:** al recrear el contenedor se perdían los mensajes aún no consumidos, los offsets (`__consumer_offsets`) y los metadatos KRaft. Un `202` ya confirmado al cliente podía no llegar nunca a la base. **Lo detectó la revisión del usuario**, que pidió la corrección.
+- **Criterio:** una confirmación al cliente debe sobrevivir al reemplazo del contenedor. Antes de cambiar nada, la IA inspeccionó la imagen: directorio por defecto, dueño de `/var/lib/kafka/data` y `CLUSTER_ID` fijo (#10).
+- **Cambio** (`706ae14`): `KAFKA_LOG_DIRS=/var/lib/kafka/data` con el volumen `kafka-data` y un `CLUSTER_ID` fijo para que el volumen formateado siga siendo válido (#11).
+- **Evidencia** (#18): con el consumidor detenido y lag 1, se eliminó y recreó el contenedor de Kafka. Los offsets y el lag quedaron idénticos, y el pendiente se procesó al arrancar el consumidor. Los pasos están en "Verificar que Kafka conserva mensajes y offsets al recrearse".
+
+### 2. Respuestas de la API aceptadas por el agente sin validar su contrato
+
+- **Enfoque inicial de la IA** (`3592f56`, etapa 4): las herramientas del agente leían las respuestas de la API sin validar su forma, y comparaban identificadores sin distinguir mayúsculas.
+- **Problema:** una respuesta con un campo ausente o de otro tipo contaba como éxito en el circuit breaker. Según la lectura del código, sin reproducirlo antes, el error aparecía después como `KeyError` o `TypeError` interno, fuera de la clasificación. Además, `bog-001` podía devolver `BOG-001`. **Lo detectó la revisión del usuario** (#69). Al revisarlo, la IA encontró otro defecto: el patrón de argumentos rechazaba identificadores válidos de la ingesta, como `Camión 7` (#70).
+- **Criterio:** una respuesta fuera de contrato es un fallo de la dependencia; debe contar en el circuito y no reintentarse. Los identificadores siguen exactamente la regla de la ingesta.
+- **Cambio** (`00b623c`): contratos estrictos (`api_contracts.py`) validados dentro del intento del circuito, que producen `invalid_response`. La regla `fleet_contracts.VehicleId` se comparte entre la ingesta y el agente (#71, #72).
+- **Evidencia** (#76): 40 pruebas nuevas en `test_agent_contracts.py`, incluida la regresión `BOG-001`/`bog-001`. Suite unitaria con 156 pasadas, y suite completa con 187 pasadas y 2 omitidas.
+
+### 3. Inicio asíncrono del GPS que dejaba suscripciones activas
+
+- **Enfoque inicial de la IA** (`8876572`, etapa 5): el hook de la app iniciaba `watchPositionAsync` sin proteger el inicio.
+- **Problema:** si el inicio terminaba después de detener, pasar a segundo plano, cambiar de fuente o desmontar, quedaba una suscripción viva o duplicada. Además, `startSources` podía rechazar sin manejo. **Lo detectó la revisión del usuario** (#90).
+- **Criterio:** solo el inicio vigente puede dejar una suscripción, y ninguna promesa puede quedar rechazada sin manejar.
+- **Cambio** (`b7cdc62`): `CaptureController` (`services/mobile/src/core/capture.ts`) con generaciones. Una suscripción que llega tarde se elimina y sus lecturas se descartan. `activate` nunca rechaza (#91).
+- **Evidencia** (#93): 13 pruebas nuevas con fuentes de suscripción demorada, que comprueban la ausencia de `unhandledRejection`; 55 pruebas de la app en total. La IA también corrigió una prueba propia con una expectativa errónea (#92). **Pendiente:** no se probó en un dispositivo.
+
+### 4. Productor Kafka que obligaba a reiniciar la API
+
+- **Enfoque inicial de la IA** (desde la etapa 1): un único productor idempotente de aiokafka creado al arrancar la API.
+- **Problema:** el escenario de caos C, que diseñó y ejecutó la IA, **encontró** que tras reiniciar Kafka la API seguía respondiendo `503` hasta reiniciarla a mano. El productor quedaba con `OutOfOrderSequenceNumber` (#105). Se conservó ese resultado como evidencia.
+- **Criterio:** primero, el diagnóstico de la causa. En aiokafka 0.12 la tarea de envío termina y cada `send` relanza el error al instante; solo sirve crear otro productor (#108). Después, la corrección sin cambiar la semántica: el envío fallido sigue respondiendo `503`, y el cliente reenvía el mismo `event_id`.
+- **Cambio** (`ed425c1`): `ResilientProducer` en `services/api/app/ingest.py`. Hace un solo reemplazo a la vez, en segundo plano, y conserva el productor anterior si Kafka aún no responde. Incluye un cierre forzado del productor viejo (#109, #113).
+- **Evidencia** (#114, `loadtest/reports/2026-11-07/ch-kafka-08001713/`): 10 `OutOfOrderSequenceNumber`, un único reemplazo, y la API sin reiniciarse (`RestartCount=0`). Los 905 reenvíos se confirmaron, y la reconciliación dio OK con 1.250 identidades y 0 duplicados. 11 pruebas en `test_producer_replacement.py`. **Queda** un aviso cosmético de una tarea auxiliar de aiokafka.
+
+Otros errores de la IA registrados:
+
+- `coalesce(null, "")` en Terraform (#128).
+- Escapes rotos al generar archivos (#43, #133).
+- El orden de pasos del workflow móvil (#87).
+- Muestras futuras en la evaluación de alertas (#51).
+
+## Etapas
+
+- **Etapa 1:** ingesta de posiciones.
+- **Etapa 2:** portal en tiempo real con la última posición de cada vehículo.
+- **Etapa 3:** zonas críticas y alertas de detención dentro de ellas.
+- **Etapa 4:** agente operativo (LangChain) con chat en el portal y herramientas de solo lectura.
+- **Etapa 5:** app del conductor (React Native + Expo + SQLite) que funciona sin conexión e ingesta por lotes.
+- **Etapa 6:** pruebas de carga reproducibles (k6), reconciliación final y caos controlado.
+- **Etapa 7:** infraestructura en AWS (Terraform + una instancia EC2 con Docker Compose), validada sin credenciales; los recursos aún no se crearon.
+- **Cierre:** matriz de cumplimiento, demostración, guion, `CLAUDE.md` y verificación final (rama `feat/cierre-entrega`).
+
+Más abajo, el detalle técnico de cada componente.
 
 ## Estructura
 
@@ -77,6 +213,9 @@ Sin credencial todo lo demás funciona y el chat informa que el agente requiere 
 | `infra/scripts/` | `validate.sh` (validación sin credenciales) y `check_compose_ports.py` |
 | `.github/workflows/infra.yml` | CI de la infraestructura, sin credenciales |
 | `docs/arquitectura-aws.md` | Arquitectura de AWS, puntos únicos de falla, evolución a HA, cuentas, RPO/RTO y costos |
+| `docs/entrega.md`, `docs/demo.md`, `docs/guion-video.md`, `docs/entorno-agentico.md` | Cierre: matriz de cumplimiento, demostración, guion del video y forma de trabajo con Claude Code |
+| `docs/verificacion/<fecha>/` | Salidas completas de la verificación final (`scripts/verificacion_final.sh`) |
+| `CLAUDE.md` | Instrucciones del proyecto para Claude Code, agregadas en el cierre |
 | `services/agent/fleet_agent/` | Agente operativo: `tools.py` (herramientas tipadas), `agent.py` (bucle y límites), `fleet_client.py` (HTTP de solo lectura), `breaker.py` (circuit breaker), `model.py` (proveedor), `main.py` (`POST /v1/chat`) |
 | `.env.example` | Variables del agente y credencial del proveedor (copiar a `.env`, que no se versiona) |
 | `services/consumer/` | Consumidor `confluent-kafka` + `psycopg` |
@@ -994,7 +1133,7 @@ docker compose --profile test run --rm --no-deps tests tests/unit -v
 Pruebas del portal (tipos, build y Vitest):
 
 ```bash
-docker build --target test services/portal
+docker build --no-cache --target test services/portal
 ```
 
 El error de BD con el stack real se puede ver con un cliente SSE abierto: `docker compose stop timescaledb` produce `status: degraded` y `docker compose start timescaledb` produce `status: ok` seguido de un snapshot.
@@ -1389,7 +1528,22 @@ infra/scripts/validate.sh all     # validación sin credenciales (solo requiere 
 - **Prueba de la app en Android:** no se ejecutó en un teléfono ni en un emulador (etapa 5).
 - **Limpieza de la tarea auxiliar de aiokafka:** al reemplazar el productor queda un `Task was destroyed but it is pending!`, cosmético y sin corregir (etapa 6).
 - **Límites de rendimiento observados:** son mediciones locales (4 CPU, 3,78 GiB). Con el endpoint individual, 50/s no se sostuvieron sin respuestas ambiguas; por lotes, 3.000 eventos en 120 lotes cumplieron los umbrales. No hay medición en AWS.
-- **Repetición de aceptación con la API reconstruida:** el stack local no se reconstruyó con la corrección del productor (`docker compose up -d --build api`) ni se repitieron las pruebas de aceptación (etapa 6). En esta etapa el stack local se detuvo con `docker compose stop`, sin borrar volúmenes.
+- **Repetición de aceptación con la API reconstruida:** quedó abierta en las etapas 6 y 7. **Resuelta en el cierre** (ver abajo).
+
+## Estado al cierre (2026-11-08)
+
+Matriz completa y resultados en [docs/entrega.md](docs/entrega.md); salidas en [docs/verificacion/2026-11-08/](docs/verificacion/2026-11-08/).
+
+| Pendiente | Estado |
+|---|---|
+| Repetir la aceptación con la API reconstruida | **Resuelto.** Stack reconstruido con `ResilientProducer` y suite de unitarias y aceptación: 236 pasadas, 0 fallidas y 36 omitidas con motivo (pasos 01 a 03) |
+| `terraform validate` | **Resuelto** en la etapa 7 (auditoría #131) y repetido en el cierre (paso 10) |
+| Chat con el proveedor real | Pendiente: no hay credencial |
+| Captura y cierre real en Android | Pendiente: no hay teléfono ni emulador. El e2e con SQLite y la API reales pasó (paso 05) |
+| Ejecución de GitHub Actions y EAS | Pendiente: sin push de esta rama ni cuenta de Expo. Se comprobaron el orden de pasos (paso 09) y el bundle (paso 08) |
+| Plan, despliegue y restauración real en AWS | Pendiente: sin cuenta. Validación sin credenciales en el paso 10 |
+| Tarea auxiliar de aiokafka | Pendiente (cosmético) |
+| Capacidad medida y objetivos de rendimiento | Pendiente: `load-300` no cumplió los umbrales; no se repitió la carga en el cierre |
 
 ## Reiniciar desde cero
 

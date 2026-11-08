@@ -1,0 +1,225 @@
+# 10-infra-validate-all
+# inicio: 2026-11-08T17:03:16Z
+# comando: infra/scripts/validate.sh all
+
+== terraform fmt -check / init -backend=false / validate
+[32m[1mSuccess![0m The configuration is valid.
+[0m
+== terraform test (modules/deploy-config)
+tests/deploy_config.tftest.hcl... [37min progress[0m
+[0m  run "opciones_ausentes"... [32mpass[0m[0m
+  run "opciones_configuradas"... [32mpass[0m[0m
+  run "opciones_mixtas"... [32mpass[0m[0m
+  run "postgres_obligatorio"... [32mpass[0m[0m
+tests/deploy_config.tftest.hcl... [37mtearing down[0m
+[0mtests/deploy_config.tftest.hcl... [32mpass[0m[0m
+
+[32mSuccess![0m[0m 4 passed, 0 failed.
+== plantilla de user_data: renderizado, tamaño, valores, bash -n, shellcheck
+opciones=false auto_deploy=true: 39 líneas, 5584 bytes comprimido, sin hallazgos
+opciones=false auto_deploy=false: 37 líneas, 5552 bytes comprimido, sin hallazgos
+opciones=true auto_deploy=true: 39 líneas, 5640 bytes comprimido, sin hallazgos
+opciones=true auto_deploy=false: 37 líneas, 5608 bytes comprimido, sin hallazgos
+== tflint
+== trivy config (errores de configuración HIGH/CRITICAL)
+
+Report Summary
+
+┌────────────┬───────────┬───────────────────┐
+│   Target   │   Type    │ Misconfigurations │
+├────────────┼───────────┼───────────────────┤
+│ .          │ terraform │         0         │
+├────────────┼───────────┼───────────────────┤
+│ network.tf │ terraform │         0         │
+└────────────┴───────────┴───────────────────┘
+Legend:
+- '-': Not scanned
+- '0': Clean (no security findings detected)
+
+
+Report Summary
+
+┌───────────────┬───────────┬───────────────────┐
+│    Target     │   Type    │ Misconfigurations │
+├───────────────┼───────────┼───────────────────┤
+│ .             │ terraform │         0         │
+├───────────────┼───────────┼───────────────────┤
+│ monitoring.tf │ terraform │         0         │
+├───────────────┼───────────┼───────────────────┤
+│ network.tf    │ terraform │         0         │
+├───────────────┼───────────┼───────────────────┤
+│ storage.tf    │ terraform │         0         │
+└───────────────┴───────────┴───────────────────┘
+Legend:
+- '-': Not scanned
+- '0': Clean (no security findings detected)
+
+== bash -n y shellcheck
+9 scripts sin errores
+== docker compose config (local + override de AWS) y puertos
+Servicios en la configuraci�n de AWS:
+  agent        puertos=-
+  api          puertos=-
+  caddy        puertos=[80, 443]
+  consumer     puertos=-
+  demo-alerts  puertos=-
+  kafka        puertos=-
+  kafka-init   puertos=-
+  migrate      puertos=-
+  portal       puertos=-
+  simulator    puertos=-
+  tests        puertos=-
+  timescaledb  puertos=-
+
+OK: solo caddy publica 80/443; sin listener EXTERNAL; sin credenciales locales; datos en /data
+== fleet-backup / fleet-restore con AWS CLI y Compose simulados
+.................................                                        [100%]
+33 passed in 9.96s
+== caddy validate (con y sin dominio)
+SITE_ADDRESS=:80: configuración válida
+SITE_ADDRESS=flota.example.com: configuración válida
+== instalación de Docker, Compose y Buildx en Amazon Linux 2023 (contenedor)
+[install-docker] paquetes del sistema
+
+Installed:
+  container-selinux-4:2.245.0-1.amzn2023.noarch                                 
+  containerd-2.3.7-1.amzn2023.0.2.x86_64                                        
+  cracklib-2.9.6-27.amzn2023.0.2.x86_64                                         
+  cryptsetup-libs-2.6.1-1.amzn2023.0.1.x86_64                                   
+  dbus-1:1.12.28-1.amzn2023.0.1.x86_64                                          
+  dbus-broker-32-1.amzn2023.0.2.x86_64                                          
+  dbus-common-1:1.12.28-1.amzn2023.0.1.noarch                                   
+  device-mapper-1.02.185-1.amzn2023.0.5.x86_64                                  
+  device-mapper-libs-1.02.185-1.amzn2023.0.5.x86_64                             
+  diffutils-3.8-1.amzn2023.0.2.x86_64                                           
+  docker-25.0.18-1.amzn2023.0.2.x86_64                                          
+  git-2.50.1-1.amzn2023.0.1.x86_64                                              
+  git-core-2.50.1-1.amzn2023.0.1.x86_64                                         
+  git-core-doc-2.50.1-1.amzn2023.0.1.noarch                                     
+  groff-base-1.22.4-7.amzn2023.0.2.x86_64                                       
+  gzip-1.12-1.amzn2023.0.1.x86_64                                               
+  inih-58-2.amzn2023.0.1.x86_64                                                 
+  iptables-libs-1.8.8-3.amzn2023.0.2.x86_64                                     
+  iptables-nft-1.8.8-3.amzn2023.0.2.x86_64                                      
+  jq-1.8.1-60.amzn2023.x86_64                                                   
+  kmod-libs-29-2.amzn2023.0.6.x86_64                                            
+  less-608-2.amzn2023.0.2.x86_64                                                
+  libargon2-20171227-9.amzn2023.0.2.x86_64                                      
+  libcbor-0.7.0-3.amzn2023.0.2.x86_64                                           
+  libcgroup-3.0-1.amzn2023.0.1.x86_64                                           
+  libdb-5.3.28-49.amzn2023.0.2.x86_64                                           
+  libeconf-0.7.9-1.amzn2023.0.1.x86_64                                          
+  libedit-3.1-38.20210714cvs.amzn2023.0.2.x86_64                                
+  libfdisk-2.37.4-1.amzn2023.0.7.x86_64                                         
+  libfido2-1.10.0-2.amzn2023.0.2.x86_64                                         
+  libibverbs-48.0-1.amzn2023.0.1.x86_64                                         
+  libmnl-1.0.4-13.amzn2023.0.2.x86_64                                           
+  libnetfilter_conntrack-1.0.8-2.amzn2023.0.2.x86_64                            
+  libnfnetlink-1.0.1-19.amzn2023.0.2.x86_64                                     
+  libnftnl-1.2.2-2.amzn2023.0.2.x86_64                                          
+  libnl3-3.5.0-6.amzn2023.0.2.x86_64                                            
+  libpcap-14:1.10.7-1.amzn2023.0.1.x86_64                                       
+  libpwquality-1.4.4-6.amzn2023.0.2.x86_64                                      
+  libseccomp-2.5.3-1.amzn2023.0.2.x86_64                                        
+  libselinux-utils-3.4-5.amzn2023.0.2.x86_64                                    
+  libsemanage-3.4-5.amzn2023.0.2.x86_64                                         
+  libutempter-1.2.1-4.amzn2023.0.2.x86_64                                       
+  libxkbcommon-1.6.0-2.amzn2023.0.1.x86_64                                      
+  ncurses-6.6-1.amzn2023.0.1.x86_64                                             
+  oniguruma-6.9.7.1-1.amzn2023.0.2.x86_64                                       
+  openssh-9.9p1-16.amzn2023.0.1.x86_64                                          
+  openssh-clients-9.9p1-16.amzn2023.0.1.x86_64                                  
+  pam-1.5.1-8.amzn2023.0.8.x86_64                                               
+  perl-AutoLoader-5.74-477.amzn2023.0.11.noarch                                 
+  perl-B-1.80-477.amzn2023.0.11.x86_64                                          
+  perl-Carp-1.50-458.amzn2023.0.2.noarch                                        
+  perl-Class-Struct-0.66-477.amzn2023.0.11.noarch                               
+  perl-Data-Dumper-2.191-522.amzn2023.0.3.x86_64                                
+  perl-Digest-1.20-1.amzn2023.0.2.noarch                                        
+  perl-Digest-MD5-2.59-521.amzn2023.0.2.x86_64                                  
+  perl-DynaLoader-1.47-477.amzn2023.0.11.x86_64                                 
+  perl-Encode-4:3.21-520.amzn2023.0.2.x86_64                                    
+  perl-Errno-1.30-477.amzn2023.0.11.x86_64                                      
+  perl-Error-1:0.17030-2.amzn2023.0.1.noarch                                    
+  perl-Exporter-5.79-520.amzn2023.0.1.noarch                                    
+  perl-Fcntl-1.13-477.amzn2023.0.11.x86_64                                      
+  perl-File-Basename-2.85-477.amzn2023.0.11.noarch                              
+  perl-File-Find-1.37-477.amzn2023.0.11.noarch                                  
+  perl-File-Path-2.18-2.amzn2023.0.2.noarch                                     
+  perl-File-Temp-1:0.231.200-2.amzn2023.0.1.noarch                              
+  perl-File-stat-1.09-477.amzn2023.0.11.noarch                                  
+  perl-FileHandle-2.03-477.amzn2023.0.11.noarch                                 
+  perl-Getopt-Long-1:2.58-521.amzn2023.0.1.noarch                               
+  perl-Getopt-Std-1.12-477.amzn2023.0.11.noarch                                 
+  perl-Git-2.50.1-1.amzn2023.0.1.noarch                                         
+  perl-HTTP-Tiny-0.092-2.amzn2023.0.3.noarch                                    
+  perl-IO-1.43-477.amzn2023.0.11.x86_64                                         
+  perl-IO-Socket-IP-0.43-522.amzn2023.0.1.noarch                                
+  perl-IO-Socket-SSL-2.075-1.amzn2023.0.3.noarch                                
+  perl-IPC-Open3-1.21-477.amzn2023.0.11.noarch                                  
+  perl-MIME-Base64-3.16-2.amzn2023.0.3.x86_64                                   
+  perl-NDBM_File-1.15-477.amzn2023.0.11.x86_64                                  
+  perl-Net-SSLeay-1.94-3.amzn2023.0.5.x86_64                                    
+  perl-POSIX-1.94-477.amzn2023.0.11.x86_64                                      
+  perl-PathTools-3.78-459.amzn2023.0.3.x86_64                                   
+  perl-Pod-Escapes-1:1.07-458.amzn2023.0.2.noarch                               
+  perl-Pod-Perldoc-3.28.01-459.amzn2023.0.3.noarch                              
+  perl-Pod-Simple-1:3.42-2.amzn2023.0.2.noarch                                  
+  perl-Pod-Usage-4:2.01-2.amzn2023.0.2.noarch                                   
+  perl-Scalar-List-Utils-4:1.56-459.amzn2023.0.3.x86_64                         
+  perl-SelectSaver-1.02-477.amzn2023.0.11.noarch                                
+  perl-Socket-4:2.032-1.amzn2023.0.4.x86_64                                     
+  perl-Storable-1:3.37-522.amzn2023.0.3.x86_64                                  
+  perl-Symbol-1.08-477.amzn2023.0.11.noarch                                     
+  perl-Term-ANSIColor-5.01-459.amzn2023.0.2.noarch                              
+  perl-Term-Cap-1.17-458.amzn2023.0.2.noarch                                    
+  perl-TermReadKey-2.38-9.amzn2023.0.3.x86_64                                   
+  perl-Text-ParseWords-3.30-458.amzn2023.0.2.noarch                             
+  perl-Text-Tabs+Wrap-2021.0726-1.amzn2023.0.1.noarch                           
+  perl-Time-HiRes-4:1.9764-460.amzn2023.0.3.x86_64                              
+  perl-Time-Local-2:1.300-5.amzn2023.0.2.noarch                                 
+  perl-URI-5.18-1.amzn2023.0.1.noarch                                           
+  perl-base-2.27-477.amzn2023.0.11.noarch                                       
+  perl-constant-1.33-459.amzn2023.0.2.noarch                                    
+  perl-if-0.60.800-477.amzn2023.0.11.noarch                                     
+  perl-interpreter-4:5.32.1-477.amzn2023.0.11.x86_64                            
+  perl-lib-0.65-477.amzn2023.0.11.x86_64                                        
+  perl-libnet-3.13-2.amzn2023.0.2.noarch                                        
+  perl-libs-4:5.32.1-477.amzn2023.0.11.x86_64                                   
+  perl-mro-1.23-477.amzn2023.0.11.x86_64                                        
+  perl-overload-1.31-477.amzn2023.0.11.noarch                                   
+  perl-overloading-0.02-477.amzn2023.0.11.noarch                                
+  perl-parent-1:0.238-458.amzn2023.0.2.noarch                                   
+  perl-podlators-1:4.14-458.amzn2023.0.2.noarch                                 
+  perl-subs-1.03-477.amzn2023.0.11.noarch                                       
+  perl-vars-1.05-477.amzn2023.0.11.noarch                                       
+  pigz-2.5-1.amzn2023.0.4.x86_64                                                
+  policycoreutils-3.4-6.amzn2023.0.3.x86_64                                     
+  qrencode-libs-4.1.1-2.amzn2023.0.2.x86_64                                     
+  rpm-plugin-selinux-4.16.1.3-29.amzn2023.0.8.x86_64                            
+  runc-1.4.3-1.amzn2023.0.3.x86_64                                              
+  selinux-policy-38.1.76-1.amzn2023.0.3.noarch                                  
+  selinux-policy-targeted-38.1.76-1.amzn2023.0.3.noarch                         
+  shadow-utils-2:4.9-12.amzn2023.0.4.x86_64                                     
+  systemd-252.23-15.amzn2023.x86_64                                             
+  systemd-libs-252.23-15.amzn2023.x86_64                                        
+  systemd-networkd-252.23-15.amzn2023.x86_64                                    
+  systemd-pam-252.23-15.amzn2023.x86_64                                         
+  systemd-resolved-252.23-15.amzn2023.x86_64                                    
+  tar-2:1.34-1.amzn2023.0.4.x86_64                                              
+  userspace-rcu-0.12.1-3.amzn2023.0.4.x86_64                                    
+  util-linux-2.37.4-1.amzn2023.0.7.x86_64                                       
+  util-linux-core-2.37.4-1.amzn2023.0.7.x86_64                                  
+  xfsprogs-6.12.0-3.amzn2023.0.1.x86_64                                         
+  xkeyboard-config-2.41-1.amzn2023.0.1.noarch                                   
+  xz-5.2.5-9.amzn2023.0.2.x86_64                                                
+
+[install-docker] docker-compose-linux-x86_64 verificado e instalado en /usr/local/lib/docker/cli-plugins/docker-compose
+[install-docker] buildx-v0.38.1.linux-amd64 verificado e instalado en /usr/local/lib/docker/cli-plugins/docker-buildx
+Docker version 25.0.14, build 0bab007
+Docker Compose version v5.6.1
+github.com/docker/buildx v0.38.1 0dbe87f36ed472fe36b6796c3f70b4210a731fc5
+[install-docker] listo
+OK (all)
+
+# fin: 2026-11-08T17:19:57Z  código: 0  duración: 1002 s

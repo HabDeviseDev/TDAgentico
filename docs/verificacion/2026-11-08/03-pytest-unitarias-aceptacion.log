@@ -1,0 +1,712 @@
+# 03-pytest-unitarias-aceptacion
+# inicio: 2026-11-08T16:41:59Z
+# comando: docker compose --profile test run --rm --build -T tests -v -rfEs -p no:cacheprovider
+
+ Image fleet-agent Building 
+ Image fleet-portal Building 
+ Image fleet-consumer Building 
+ Image fleet-api Building 
+#1 [internal] load local bake definitions
+#1 reading from stdin 1.85kB 0.9s done
+#1 DONE 1.1s
+
+#2 [agent internal] load build definition from Dockerfile
+#2 transferring dockerfile:
+#2 transferring dockerfile: 583B 0.6s done
+#2 DONE 3.5s
+
+#3 [portal internal] load build definition from Dockerfile
+#3 transferring dockerfile: 687B 0.2s done
+#3 DONE 4.3s
+
+#4 [agent internal] load metadata for docker.io/library/python:3.12-slim
+#4 ...
+
+#5 [consumer internal] load build definition from Dockerfile
+#5 transferring dockerfile: 419B 1.2s done
+#5 DONE 4.7s
+
+#6 [api internal] load build definition from Dockerfile
+#6 transferring dockerfile: 444B 0.2s done
+#6 DONE 5.6s
+
+#7 [portal internal] load metadata for docker.io/library/nginx:1.27-alpine
+#7 ...
+
+#8 [auth] library/nginx:pull token for registry-1.docker.io
+#8 DONE 0.0s
+
+#4 [api internal] load metadata for docker.io/library/python:3.12-slim
+#4 DONE 5.0s
+
+#9 [agent internal] load .dockerignore
+#9 transferring context:
+#9 ...
+
+#10 [portal internal] load metadata for docker.io/library/node:20.18-alpine
+#10 DONE 4.9s
+
+#9 [agent internal] load .dockerignore
+#9 transferring context: 54B 0.4s done
+#9 DONE 1.4s
+
+#7 [portal internal] load metadata for docker.io/library/nginx:1.27-alpine
+#7 ...
+
+#11 [api 1/6] FROM docker.io/library/python:3.12-slim@sha256:4840d514c583a4d3d8cad3940e68dee6f0f6f3635c12fcd0a3d74c21a5b93a54
+#11 resolve docker.io/library/python:3.12-slim@sha256:4840d514c583a4d3d8cad3940e68dee6f0f6f3635c12fcd0a3d74c21a5b93a54
+#11 ...
+
+#12 [agent internal] load build context
+#12 transferring context: 69.97kB 0.3s done
+#12 DONE 2.2s
+
+#13 [api internal] load build context
+#13 transferring context: 73.49kB 0.4s done
+#13 ...
+
+#14 [consumer internal] load build context
+#14 transferring context: 12.78kB 0.2s done
+#14 DONE 3.1s
+
+#11 [agent 1/6] FROM docker.io/library/python:3.12-slim@sha256:4840d514c583a4d3d8cad3940e68dee6f0f6f3635c12fcd0a3d74c21a5b93a54
+#11 resolve docker.io/library/python:3.12-slim@sha256:4840d514c583a4d3d8cad3940e68dee6f0f6f3635c12fcd0a3d74c21a5b93a54 2.9s done
+#11 resolve docker.io/library/python:3.12-slim@sha256:4840d514c583a4d3d8cad3940e68dee6f0f6f3635c12fcd0a3d74c21a5b93a54 2.9s done
+#11 DONE 3.2s
+
+#13 [api internal] load build context
+#13 DONE 3.9s
+
+#7 [portal internal] load metadata for docker.io/library/nginx:1.27-alpine
+#7 DONE 10.1s
+
+#15 [portal internal] load .dockerignore
+#15 DONE 0.0s
+
+#15 [portal internal] load .dockerignore
+#15 ...
+
+#16 [consumer 5/6] COPY contracts/fleet_contracts ./fleet_contracts
+#16 CACHED
+
+#17 [consumer 4/6] RUN pip install --no-cache-dir -r requirements.txt
+#17 CACHED
+
+#18 [consumer 3/6] COPY services/consumer/requirements.txt .
+#18 CACHED
+
+#19 [api 4/6] RUN pip install --no-cache-dir -r requirements.txt
+#19 CACHED
+
+#20 [api 3/6] COPY services/api/requirements.txt .
+#20 CACHED
+
+#21 [api 5/6] COPY contracts/fleet_contracts ./fleet_contracts
+#21 CACHED
+
+#22 [agent 4/6] RUN pip install --no-cache-dir -r requirements.txt
+#22 CACHED
+
+#23 [api 2/6] WORKDIR /app
+#23 CACHED
+
+#24 [agent 3/6] COPY services/agent/requirements.txt .
+#24 CACHED
+
+#25 [agent 5/6] COPY contracts/fleet_contracts ./fleet_contracts
+#25 CACHED
+
+#26 [api 6/6] COPY services/api/app ./app
+#26 CACHED
+
+#27 [agent 6/6] COPY services/agent/fleet_agent ./fleet_agent
+#27 CACHED
+
+#28 [consumer 6/6] COPY services/consumer/consumer ./consumer
+#28 CACHED
+
+#15 [portal internal] load .dockerignore
+#15 transferring context: 58B 0.2s done
+#15 DONE 2.9s
+
+#29 [consumer] exporting to image
+#29 exporting layers 0.0s done
+#29 exporting manifest sha256:ca391a8cabc0a329d6855d10a9583f2fbe71298ed58fc55f779e0f877fd9c2c2
+#29 ...
+
+#30 [portal internal] load build context
+#30 DONE 0.0s
+
+#29 [consumer] exporting to image
+#29 exporting manifest sha256:ca391a8cabc0a329d6855d10a9583f2fbe71298ed58fc55f779e0f877fd9c2c2 0.6s done
+#29 exporting config sha256:ab68ce7c046f88384760c79884ba7f4967a9168019cffc16640f185d9b3dfbf1
+#29 exporting config sha256:ab68ce7c046f88384760c79884ba7f4967a9168019cffc16640f185d9b3dfbf1 1.9s done
+#29 ...
+
+#31 [api] exporting to image
+#31 exporting layers 0.0s done
+#31 exporting manifest sha256:ffa17c89abcb7b1ae3a9aec9ac9d43748d86d5a8178c0162d0f0d4fd8d5876ce 1.0s done
+#31 exporting config sha256:7371788fbed0c80cb31d6ce9916b723f306bf6777c845a882f97acf7d5fdf4da 1.7s done
+#31 ...
+
+#32 [agent] exporting to image
+#32 exporting layers 0.0s done
+#32 exporting manifest sha256:dd56ad8561d1a2969c8391e8b6f951e73a9489c5b7fc540fdfe8b02fd4d8fdde 1.4s done
+#32 exporting config sha256:95546ad8c31383c93cd3236df7efc65dd8c09cdd9d4870898473936e58d061d6 1.1s done
+#32 exporting attestation manifest sha256:d57c5f67652f3de0444448e4d5aabae89a33454131b240be0cf16d277aafd93d
+#32 ...
+
+#29 [consumer] exporting to image
+#29 exporting attestation manifest sha256:ea58910e3c6328e202c5baf183116b6a08b2caa20558ec61582e7519d29fa84c
+#29 ...
+
+#33 [portal build 1/6] FROM docker.io/library/node:20.18-alpine@sha256:053c1d99e608fe9fa0db6821edd84276277c0a663cd181f4a3e59ee20f5f07ea
+#33 resolve docker.io/library/node:20.18-alpine@sha256:053c1d99e608fe9fa0db6821edd84276277c0a663cd181f4a3e59ee20f5f07ea
+#33 ...
+
+#34 [portal stage-2 1/3] FROM docker.io/library/nginx:1.27-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10
+#34 resolve docker.io/library/nginx:1.27-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10
+#34 ...
+
+#31 [api] exporting to image
+#31 exporting attestation manifest sha256:4e34b982120ca010a4e94cdfe96c55d2dc31ad161a34f656b3bcba13da6548c5
+#31 ...
+
+#29 [consumer] exporting to image
+#29 exporting attestation manifest sha256:ea58910e3c6328e202c5baf183116b6a08b2caa20558ec61582e7519d29fa84c 5.6s done
+#29 exporting manifest list sha256:f2fd0acb50b8bf9755c9bbb67e6de88af22ded39cc4d5bf95f7725b2b05a39cd
+#29 ...
+
+#33 [portal build 1/6] FROM docker.io/library/node:20.18-alpine@sha256:053c1d99e608fe9fa0db6821edd84276277c0a663cd181f4a3e59ee20f5f07ea
+#33 resolve docker.io/library/node:20.18-alpine@sha256:053c1d99e608fe9fa0db6821edd84276277c0a663cd181f4a3e59ee20f5f07ea 13.2s done
+#33 DONE 14.7s
+
+#34 [portal stage-2 1/3] FROM docker.io/library/nginx:1.27-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10
+#34 resolve docker.io/library/nginx:1.27-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10 12.9s done
+#34 DONE 14.8s
+
+#30 [portal internal] load build context
+#30 transferring context: 1.53kB 0.1s done
+#30 DONE 1.0s
+
+#31 [api] exporting to image
+#31 exporting attestation manifest sha256:4e34b982120ca010a4e94cdfe96c55d2dc31ad161a34f656b3bcba13da6548c5 6.0s done
+#31 exporting manifest list sha256:64243170e9173fdb9ba4558351e8b21f0167248d4bcbf616d6b8d2d15ae6a853
+#31 ...
+
+#35 [portal build 3/6] COPY package.json package-lock.json ./
+#35 CACHED
+
+#36 [portal build 4/6] RUN npm ci --no-audit --no-fund
+#36 CACHED
+
+#37 [portal build 5/6] COPY . .
+#37 CACHED
+
+#38 [portal build 6/6] RUN npm run build
+#38 CACHED
+
+#39 [portal stage-2 2/3] COPY nginx/default.conf.template /etc/nginx/templates/default.conf.template
+#39 CACHED
+
+#40 [portal build 2/6] WORKDIR /app
+#40 CACHED
+
+#41 [portal stage-2 3/3] COPY --from=build /app/dist /usr/share/nginx/html
+#41 CACHED
+
+#32 [agent] exporting to image
+#32 exporting attestation manifest sha256:d57c5f67652f3de0444448e4d5aabae89a33454131b240be0cf16d277aafd93d 6.1s done
+#32 exporting manifest list sha256:5256120b23b4abd15b03c976df7e9281f80675dae4fdb0ce43d68c3b570c95df
+#32 exporting manifest list sha256:5256120b23b4abd15b03c976df7e9281f80675dae4fdb0ce43d68c3b570c95df 4.6s done
+#32 naming to docker.io/library/fleet-agent:latest
+#32 ...
+
+#29 [consumer] exporting to image
+#29 exporting manifest list sha256:f2fd0acb50b8bf9755c9bbb67e6de88af22ded39cc4d5bf95f7725b2b05a39cd 4.8s done
+#29 naming to docker.io/library/fleet-consumer:latest
+#29 naming to docker.io/library/fleet-consumer:latest 1.0s done
+#29 unpacking to docker.io/library/fleet-consumer:latest
+#29 unpacking to docker.io/library/fleet-consumer:latest 1.2s done
+#29 ...
+
+#32 [agent] exporting to image
+#32 naming to docker.io/library/fleet-agent:latest 1.2s done
+#32 unpacking to docker.io/library/fleet-agent:latest 1.3s done
+#32 DONE 25.3s
+
+#42 [portal] exporting to image
+#42 exporting layers 0.0s done
+#42 exporting manifest sha256:b1fabd959b3a67aafefdbdf635e5d8ac0bb7145b5181a3f253e7a50f5bd532d3 0.9s done
+#42 exporting config sha256:940e64885fdae1b35eb7907c6b6f7eba17130b8c05b2c540753dc3fefd8c4c30 0.7s done
+#42 ...
+
+#29 [consumer] exporting to image
+#29 DONE 25.3s
+
+#31 [api] exporting to image
+#31 exporting manifest list sha256:64243170e9173fdb9ba4558351e8b21f0167248d4bcbf616d6b8d2d15ae6a853 4.5s done
+#31 naming to docker.io/library/fleet-api:latest 0.7s done
+#31 unpacking to docker.io/library/fleet-api:latest 3.0s done
+#31 DONE 24.9s
+
+#42 [portal] exporting to image
+#42 exporting attestation manifest sha256:2bd24f5fa97e02ddee379f1b70ed13fce0e428d9ff0cba96cc72f6614b358895
+#42 exporting attestation manifest sha256:2bd24f5fa97e02ddee379f1b70ed13fce0e428d9ff0cba96cc72f6614b358895 14.3s done
+#42 exporting manifest list sha256:c1518c4548f00237b2204e5a674f84749516a5c810087f84888e3a3a47cc9dcc
+#42 exporting manifest list sha256:c1518c4548f00237b2204e5a674f84749516a5c810087f84888e3a3a47cc9dcc 2.8s done
+#42 naming to docker.io/library/fleet-portal:latest
+#42 naming to docker.io/library/fleet-portal:latest 0.6s done
+#42 unpacking to docker.io/library/fleet-portal:latest
+#42 unpacking to docker.io/library/fleet-portal:latest 2.0s done
+#42 DONE 26.0s
+
+#43 [consumer] resolving provenance for metadata file
+#43 ...
+
+#44 [agent] resolving provenance for metadata file
+#44 DONE 4.0s
+
+#45 [api] resolving provenance for metadata file
+#45 DONE 4.0s
+
+#46 [portal] resolving provenance for metadata file
+#46 DONE 4.5s
+
+#43 [consumer] resolving provenance for metadata file
+#43 DONE 5.8s
+ Image fleet-portal Built 
+ Image fleet-agent Built 
+ Image fleet-api Built 
+ Image fleet-consumer Built 
+ Container fleet-timescaledb-1 Running 
+ Container fleet-consumer-1 Running 
+ Container fleet-kafka-1 Running 
+ Container fleet-agent-1 Running 
+ Container fleet-api-1 Running 
+ Container fleet-portal-1 Running 
+ Container fleet-kafka-1 Waiting 
+ Container fleet-timescaledb-1 Waiting 
+ Container fleet-kafka-1 Healthy 
+ Container fleet-timescaledb-1 Healthy 
+ Container fleet-migrate-1 Starting 
+ Container fleet-kafka-init-1 Starting 
+ Container fleet-migrate-1 Started 
+ Container fleet-kafka-init-1 Started 
+ Container fleet-kafka-init-1 Waiting 
+ Container fleet-migrate-1 Waiting 
+ Container fleet-kafka-init-1 Waiting 
+ Container fleet-migrate-1 Waiting 
+ Container fleet-migrate-1 Exited 
+ Container fleet-migrate-1 Exited 
+ Container fleet-kafka-init-1 Exited 
+ Container fleet-api-1 Waiting 
+ Container fleet-kafka-init-1 Exited 
+ Container fleet-api-1 Healthy 
+ Image fleet-tests Building 
+#1 [internal] load local bake definitions
+#1 reading from stdin 2.20kB 0.4s done
+#1 DONE 0.4s
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile:
+#2 transferring dockerfile: 900B 0.0s done
+#2 DONE 0.8s
+
+#3 [internal] load metadata for docker.io/library/python:3.12-slim
+#3 DONE 1.6s
+
+#4 [internal] load .dockerignore
+#4 transferring context:
+#4 transferring context: 54B 0.1s done
+#4 DONE 0.6s
+
+#5 [internal] load build context
+#5 ...
+
+#6 [ 1/13] FROM docker.io/library/python:3.12-slim@sha256:4840d514c583a4d3d8cad3940e68dee6f0f6f3635c12fcd0a3d74c21a5b93a54
+#6 resolve docker.io/library/python:3.12-slim@sha256:4840d514c583a4d3d8cad3940e68dee6f0f6f3635c12fcd0a3d74c21a5b93a54 3.7s done
+#6 DONE 4.1s
+
+#5 [internal] load build context
+#5 transferring context: 1.44MB 4.2s
+#5 transferring context: 1.63MB 4.5s done
+#5 DONE 5.3s
+
+#7 [ 8/13] COPY pytest.ini .
+#7 CACHED
+
+#8 [ 4/13] COPY services/consumer/requirements.txt services/consumer/requirements.txt
+#8 CACHED
+
+#9 [ 7/13] RUN pip install --no-cache-dir     -r services/api/requirements.txt     -r services/consumer/requirements.txt     -r services/agent/requirements.txt     -r tests/acceptance/requirements.txt
+#9 CACHED
+
+#10 [ 9/13] COPY contracts ./contracts
+#10 CACHED
+
+#11 [ 2/13] WORKDIR /repo
+#11 CACHED
+
+#12 [ 3/13] COPY services/api/requirements.txt services/api/requirements.txt
+#12 CACHED
+
+#13 [ 6/13] COPY tests/acceptance/requirements.txt tests/acceptance/requirements.txt
+#13 CACHED
+
+#14 [ 5/13] COPY services/agent/requirements.txt services/agent/requirements.txt
+#14 CACHED
+
+#15 [10/13] COPY services ./services
+#15 CACHED
+
+#16 [11/13] COPY scripts ./scripts
+#16 DONE 3.0s
+
+#17 [12/13] COPY loadtest ./loadtest
+#17 DONE 3.7s
+
+#18 [13/13] COPY tests ./tests
+#18 DONE 5.0s
+
+#19 exporting to image
+#19 exporting layers
+#19 exporting layers 12.7s done
+#19 exporting manifest sha256:e92f285970e0ff4759d8566644895141119a0a6b722e56f0a8b7af3fc00b52c2
+#19 exporting manifest sha256:e92f285970e0ff4759d8566644895141119a0a6b722e56f0a8b7af3fc00b52c2 1.0s done
+#19 exporting config sha256:c90bb2d68638c6bc0728ba96371f052d6ffd21c700a52692d204497532c7add4
+#19 exporting config sha256:c90bb2d68638c6bc0728ba96371f052d6ffd21c700a52692d204497532c7add4 0.9s done
+#19 exporting attestation manifest sha256:569e17960691d69b4655a8e571873430b225a088574a6c363f5f687884a4378f
+#19 exporting attestation manifest sha256:569e17960691d69b4655a8e571873430b225a088574a6c363f5f687884a4378f 1.4s done
+#19 exporting manifest list sha256:253bfe8eb42b1de435b9e13f5b43a9bc0489c1bc211dcdbc18bc69223ff7e4ac
+#19 exporting manifest list sha256:253bfe8eb42b1de435b9e13f5b43a9bc0489c1bc211dcdbc18bc69223ff7e4ac 1.0s done
+#19 naming to docker.io/library/fleet-tests:latest
+#19 naming to docker.io/library/fleet-tests:latest 0.2s done
+#19 unpacking to docker.io/library/fleet-tests:latest
+#19 unpacking to docker.io/library/fleet-tests:latest 12.2s done
+#19 DONE 31.1s
+
+#20 resolving provenance for metadata file
+#20 DONE 0.2s
+ Image fleet-tests Built 
+ Container fleet-api-1 Waiting 
+ Container fleet-agent-1 Waiting 
+ Container fleet-api-1 Healthy 
+ Container fleet-agent-1 Healthy 
+ Container fleet-tests-run-742695143279 Creating 
+ Container fleet-tests-run-742695143279 Created 
+============================= test session starts ==============================
+platform linux -- Python 3.12.16, pytest-8.3.4, pluggy-1.7.0 -- /usr/local/bin/python3.12
+rootdir: /repo
+configfile: pytest.ini
+testpaths: tests/unit, tests/acceptance
+plugins: anyio-4.16.0, langsmith-0.14.17
+collecting ... collected 271 items / 1 skipped
+
+tests/unit/test_agent_breaker.py::test_se_abre_tras_fallos_consecutivos_y_rechaza_sin_llamar PASSED [  0%]
+tests/unit/test_agent_breaker.py::test_un_exito_reinicia_los_fallos_consecutivos PASSED [  0%]
+tests/unit/test_agent_breaker.py::test_errores_que_no_cuentan_no_abren_el_circuito PASSED [  1%]
+tests/unit/test_agent_breaker.py::test_semiabierto_prueba_limitada_y_recuperacion PASSED [  1%]
+tests/unit/test_agent_breaker.py::test_semiabierto_con_varias_pruebas_concurrentes PASSED [  1%]
+tests/unit/test_agent_breaker.py::test_prueba_fallida_vuelve_a_abrir_con_nuevo_plazo PASSED [  2%]
+tests/unit/test_agent_breaker.py::test_cancelar_una_prueba_libera_el_cupo_sin_cambiar_el_estado PASSED [  2%]
+tests/unit/test_agent_breaker.py::test_resultado_tardio_de_otra_generacion_no_cambia_el_estado PASSED [  2%]
+tests/unit/test_agent_breaker.py::test_reintenta_errores_transitorios_y_cada_intento_pasa_por_el_circuito PASSED [  3%]
+tests/unit/test_agent_breaker.py::test_clasificacion_de_errores[timeout-timeout-True-3] PASSED [  3%]
+tests/unit/test_agent_breaker.py::test_clasificacion_de_errores[connect-connect-True-3] PASSED [  4%]
+tests/unit/test_agent_breaker.py::test_clasificacion_de_errores[error503-http_5xx-True-3] PASSED [  4%]
+tests/unit/test_agent_breaker.py::test_clasificacion_de_errores[invalid_json-invalid_response-True-1] PASSED [  4%]
+tests/unit/test_agent_breaker.py::test_clasificacion_de_errores[http404-http_4xx-False-1] PASSED [  5%]
+tests/unit/test_agent_breaker.py::test_rutas_fijas_y_url_de_configuracion PASSED [  5%]
+tests/unit/test_agent_breaker.py::test_circuito_abierto_no_llama_a_la_api_y_no_reintenta PASSED [  5%]
+tests/unit/test_agent_chat.py::test_selecciona_y_ejecuta_la_herramienta_real PASSED [  6%]
+tests/unit/test_agent_chat.py::test_herramientas_en_paralelo_y_posicion_de_un_vehiculo PASSED [  6%]
+tests/unit/test_agent_chat.py::test_consulta_sin_coincidencias PASSED    [  7%]
+tests/unit/test_agent_chat.py::test_evidencia_insuficiente_y_evaluacion_parcial_se_conservan PASSED [  7%]
+tests/unit/test_agent_chat.py::test_umbral_distinto_al_configurado_no_se_soporta PASSED [  7%]
+tests/unit/test_agent_chat.py::test_umbral_mayor_al_configurado_filtra_alertas_de_la_api PASSED [  8%]
+tests/unit/test_agent_chat.py::test_resultados_truncados_conservan_conteos_y_advertencia PASSED [  8%]
+tests/unit/test_agent_chat.py::test_fallo_y_timeout_de_la_api_se_comunican[error503-http_5xx] PASSED [  8%]
+tests/unit/test_agent_chat.py::test_fallo_y_timeout_de_la_api_se_comunican[timeout-timeout] PASSED [  9%]
+tests/unit/test_agent_chat.py::test_circuit_breaker_apertura_rechazo_y_recuperacion PASSED [  9%]
+tests/unit/test_agent_chat.py::test_fleet_check_muestra_el_circuito_sin_modelo PASSED [  9%]
+tests/unit/test_agent_chat.py::test_argumentos_invalidos_no_llaman_a_la_api PASSED [ 10%]
+tests/unit/test_agent_chat.py::test_limite_de_pasos PASSED               [ 10%]
+tests/unit/test_agent_chat.py::test_limite_de_llamadas_a_herramientas PASSED [ 11%]
+tests/unit/test_agent_chat.py::test_duracion_total_y_liberacion_del_cupo PASSED [ 11%]
+tests/unit/test_agent_chat.py::test_cancelacion_libera_la_peticion_http_y_el_circuito PASSED [ 11%]
+tests/unit/test_agent_chat.py::test_limite_de_chats_concurrentes PASSED  [ 12%]
+tests/unit/test_agent_chat.py::test_longitud_de_la_pregunta PASSED       [ 12%]
+tests/unit/test_agent_chat.py::test_respuesta_truncada_por_tokens_y_por_longitud PASSED [ 12%]
+tests/unit/test_agent_chat.py::test_error_del_proveedor_del_modelo PASSED [ 13%]
+tests/unit/test_agent_chat.py::test_sin_credenciales_el_servicio_arranca_e_informa_configuracion PASSED [ 13%]
+tests/unit/test_agent_chat.py::test_datos_de_herramientas_con_instrucciones_maliciosas PASSED [ 14%]
+tests/unit/test_agent_contracts.py::test_respuesta_fuera_de_contrato_es_invalid_response_y_cuenta_como_fallo[falta evaluated_at] PASSED [ 14%]
+tests/unit/test_agent_contracts.py::test_respuesta_fuera_de_contrato_es_invalid_response_y_cuenta_como_fallo[falta parameters.alert_after_s] PASSED [ 14%]
+tests/unit/test_agent_contracts.py::test_respuesta_fuera_de_contrato_es_invalid_response_y_cuenta_como_fallo[falta zone_id de una alerta] PASSED [ 15%]
+tests/unit/test_agent_contracts.py::test_respuesta_fuera_de_contrato_es_invalid_response_y_cuenta_como_fallo[falta vehicles] PASSED [ 15%]
+tests/unit/test_agent_contracts.py::test_respuesta_fuera_de_contrato_es_invalid_response_y_cuenta_como_fallo[falta radius_m] PASSED [ 15%]
+tests/unit/test_agent_contracts.py::test_respuesta_fuera_de_contrato_es_invalid_response_y_cuenta_como_fallo[lat como texto] PASSED [ 16%]
+tests/unit/test_agent_contracts.py::test_respuesta_fuera_de_contrato_es_invalid_response_y_cuenta_como_fallo[speed_kmh nulo] PASSED [ 16%]
+tests/unit/test_agent_contracts.py::test_respuesta_fuera_de_contrato_es_invalid_response_y_cuenta_como_fallo[is_demo como n\xfamero] PASSED [ 16%]
+tests/unit/test_agent_contracts.py::test_respuesta_fuera_de_contrato_es_invalid_response_y_cuenta_como_fallo[complete como texto] PASSED [ 17%]
+tests/unit/test_agent_contracts.py::test_respuesta_fuera_de_contrato_es_invalid_response_y_cuenta_como_fallo[alerts como objeto] PASSED [ 17%]
+tests/unit/test_agent_contracts.py::test_respuesta_fuera_de_contrato_es_invalid_response_y_cuenta_como_fallo[vehicle_id num\xe9rico] PASSED [ 18%]
+tests/unit/test_agent_contracts.py::test_respuesta_fuera_de_contrato_es_invalid_response_y_cuenta_como_fallo[fecha imposible] PASSED [ 18%]
+tests/unit/test_agent_contracts.py::test_respuesta_fuera_de_contrato_es_invalid_response_y_cuenta_como_fallo[fecha sin zona horaria] PASSED [ 18%]
+tests/unit/test_agent_contracts.py::test_respuesta_fuera_de_contrato_es_invalid_response_y_cuenta_como_fallo[fecha en texto libre] PASSED [ 19%]
+tests/unit/test_agent_contracts.py::test_respuesta_fuera_de_contrato_es_invalid_response_y_cuenta_como_fallo[last_sample_at no es fecha] PASSED [ 19%]
+tests/unit/test_agent_contracts.py::test_respuesta_fuera_de_contrato_es_invalid_response_y_cuenta_como_fallo[latitud fuera de rango] PASSED [ 19%]
+tests/unit/test_agent_contracts.py::test_respuesta_fuera_de_contrato_es_invalid_response_y_cuenta_como_fallo[count distinto de la lista] PASSED [ 20%]
+tests/unit/test_agent_contracts.py::test_respuesta_fuera_de_contrato_es_invalid_response_y_cuenta_como_fallo[alert_count distinto de la lista] PASSED [ 20%]
+tests/unit/test_agent_contracts.py::test_respuestas_validas_se_aceptan_incluidos_enteros_en_campos_reales PASSED [ 21%]
+tests/unit/test_agent_contracts.py::test_respuestas_invalidas_abren_el_circuito PASSED [ 21%]
+tests/unit/test_agent_contracts.py::test_herramienta_unavailable_con_advertencia_y_sin_datos_internos PASSED [ 21%]
+tests/unit/test_agent_contracts.py::test_regresion_mayusculas_posiciones_y_alertas[BOG-001] PASSED [ 22%]
+tests/unit/test_agent_contracts.py::test_regresion_mayusculas_posiciones_y_alertas[bog-001] PASSED [ 22%]
+tests/unit/test_agent_contracts.py::test_identificador_con_otras_mayusculas_no_coincide PASSED [ 22%]
+tests/unit/test_agent_contracts.py::test_argumentos_admiten_los_mismos_identificadores_que_la_ingesta[BOG-001] PASSED [ 23%]
+tests/unit/test_agent_contracts.py::test_argumentos_admiten_los_mismos_identificadores_que_la_ingesta[bog-001] PASSED [ 23%]
+tests/unit/test_agent_contracts.py::test_argumentos_admiten_los_mismos_identificadores_que_la_ingesta[Cami\xf3n 7] PASSED [ 23%]
+tests/unit/test_agent_contracts.py::test_argumentos_admiten_los_mismos_identificadores_que_la_ingesta[BOG/01] PASSED [ 24%]
+tests/unit/test_agent_contracts.py::test_argumentos_admiten_los_mismos_identificadores_que_la_ingesta[\u8f66\u8f86-1] PASSED [ 24%]
+tests/unit/test_agent_contracts.py::test_argumentos_admiten_los_mismos_identificadores_que_la_ingesta[TEST-0533909c40ae] PASSED [ 25%]
+tests/unit/test_agent_contracts.py::test_argumentos_admiten_los_mismos_identificadores_que_la_ingesta[DEMO-1940-ZONA25] PASSED [ 25%]
+tests/unit/test_agent_contracts.py::test_argumentos_admiten_los_mismos_identificadores_que_la_ingesta[aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa] PASSED [ 25%]
+tests/unit/test_agent_contracts.py::test_argumentos_admiten_los_mismos_identificadores_que_la_ingesta[  BOG-003  ] PASSED [ 26%]
+tests/unit/test_agent_contracts.py::test_argumentos_admiten_los_mismos_identificadores_que_la_ingesta[ x ] PASSED [ 26%]
+tests/unit/test_agent_contracts.py::test_argumentos_admiten_los_mismos_identificadores_que_la_ingesta[../etc/passwd] PASSED [ 26%]
+tests/unit/test_agent_contracts.py::test_argumentos_admiten_los_mismos_identificadores_que_la_ingesta[] PASSED [ 27%]
+tests/unit/test_agent_contracts.py::test_argumentos_admiten_los_mismos_identificadores_que_la_ingesta[   ] PASSED [ 27%]
+tests/unit/test_agent_contracts.py::test_argumentos_admiten_los_mismos_identificadores_que_la_ingesta[aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa] PASSED [ 28%]
+tests/unit/test_agent_contracts.py::test_argumentos_admiten_los_mismos_identificadores_que_la_ingesta[ bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb] PASSED [ 28%]
+tests/unit/test_agent_contracts.py::test_identificador_valido_de_la_ingesta_llega_exacto_a_la_api_simulada PASSED [ 28%]
+tests/unit/test_alert_hub.py::test_evaluacion_en_una_transaccion_repeatable_read_de_solo_lectura PASSED [ 29%]
+tests/unit/test_alert_hub.py::test_consulta_colgada_supera_el_timeout_y_descarta_la_conexion PASSED [ 29%]
+tests/unit/test_alert_hub.py::test_al_conectar_recibe_estado_y_resultado_completo PASSED [ 29%]
+tests/unit/test_alert_hub.py::test_detecta_cambios_aunque_la_posicion_actual_no_cambie PASSED [ 30%]
+tests/unit/test_alert_hub.py::test_timeout_degrada_conserva_el_resultado_y_se_recupera PASSED [ 30%]
+tests/unit/test_alert_hub.py::test_sin_resultado_previo_un_fallo_no_publica_lista_vacia PASSED [ 30%]
+tests/unit/test_alert_hub.py::test_limites_se_informan_como_evaluacion_parcial PASSED [ 31%]
+tests/unit/test_alert_hub.py::test_stream_entrega_posiciones_y_alertas_y_libera_ambas_suscripciones PASSED [ 31%]
+tests/unit/test_alert_hub.py::test_cliente_lento_guarda_un_evento_por_tipo PASSED [ 32%]
+tests/unit/test_alert_hub.py::test_get_alerts_y_zonas PASSED             [ 32%]
+tests/unit/test_alert_hub.py::test_get_alerts_responde_503_si_la_lectura_se_cuelga PASSED [ 32%]
+tests/unit/test_alert_hub.py::test_todas_las_consultas_usan_el_mismo_instante_de_evaluacion PASSED [ 33%]
+tests/unit/test_alert_hub.py::test_regresion_muestras_futuras_en_el_hub_y_avance_del_reloj PASSED [ 33%]
+tests/unit/test_api_kafka_errors.py::test_202_cuando_kafka_confirma PASSED [ 33%]
+tests/unit/test_api_kafka_errors.py::test_503_cuando_kafka_rechaza_el_envio[connection_error] PASSED [ 34%]
+tests/unit/test_api_kafka_errors.py::test_503_cuando_kafka_rechaza_el_envio[not_enough_replicas] PASSED [ 34%]
+tests/unit/test_api_kafka_errors.py::test_503_cuando_kafka_no_confirma_a_tiempo PASSED [ 35%]
+tests/unit/test_api_kafka_errors.py::test_evento_invalido_no_llega_a_kafka PASSED [ 35%]
+tests/unit/test_batch_ingest.py::test_resultado_por_evento_con_indice_e_id_tambien_si_es_invalido PASSED [ 35%]
+tests/unit/test_batch_ingest.py::test_lote_parcialmente_publicado PASSED [ 36%]
+tests/unit/test_batch_ingest.py::test_reenvio_del_mismo_lote_conserva_identidad_y_contenido PASSED [ 36%]
+tests/unit/test_batch_ingest.py::test_misma_validacion_y_publicacion_que_el_endpoint_individual PASSED [ 36%]
+tests/unit/test_batch_ingest.py::test_endpoint_individual_conserva_202_y_503 PASSED [ 37%]
+tests/unit/test_batch_ingest.py::test_limite_de_eventos PASSED           [ 37%]
+tests/unit/test_batch_ingest.py::test_limite_de_bytes PASSED             [ 38%]
+tests/unit/test_batch_ingest.py::test_forma_del_cuerpo[no es json-400] PASSED [ 38%]
+tests/unit/test_batch_ingest.py::test_forma_del_cuerpo[[]-422] PASSED    [ 38%]
+tests/unit/test_batch_ingest.py::test_forma_del_cuerpo[{"events": {}}-422] PASSED [ 39%]
+tests/unit/test_batch_ingest.py::test_forma_del_cuerpo[{"events": []}-422] PASSED [ 39%]
+tests/unit/test_consumer_dlq.py::test_mensaje_invalido_va_a_dlq_y_su_offset_se_confirma_despues_del_ack PASSED [ 39%]
+tests/unit/test_consumer_dlq.py::test_lote_mixto_confirma_offsets_despues_de_dlq_y_bd PASSED [ 40%]
+tests/unit/test_consumer_dlq.py::test_si_falla_la_dlq_el_offset_queda_sin_confirmar[delivery_error] PASSED [ 40%]
+tests/unit/test_consumer_dlq.py::test_si_falla_la_dlq_el_offset_queda_sin_confirmar[timeout] PASSED [ 40%]
+tests/unit/test_consumer_dlq.py::test_si_falla_la_bd_no_se_confirman_offsets PASSED [ 41%]
+tests/unit/test_fleet_backup_restore.py::test_backup_sube_dump_y_metadatos_del_mismo_respaldo SKIPPED [ 41%]
+tests/unit/test_fleet_backup_restore.py::test_backup_sin_kafka_guarda_metadatos_sin_offsets SKIPPED [ 42%]
+tests/unit/test_fleet_backup_restore.py::test_backup_con_particion_sin_offset_confirmado_no_guarda_offsets SKIPPED [ 42%]
+tests/unit/test_fleet_backup_restore.py::test_backup_sin_bucket_no_llama_a_s3 SKIPPED [ 42%]
+tests/unit/test_fleet_backup_restore.py::test_restore_desde_s3_con_replay SKIPPED [ 43%]
+tests/unit/test_fleet_backup_restore.py::test_restore_local_sin_replay_no_mueve_offsets SKIPPED [ 43%]
+tests/unit/test_fleet_backup_restore.py::test_restore_sin_replay_admite_falta_de_metadatos SKIPPED [ 43%]
+tests/unit/test_fleet_backup_restore.py::test_restore_avisa_si_la_retencion_borro_eventos SKIPPED [ 44%]
+tests/unit/test_fleet_backup_restore.py::test_replay_sin_metadatos_falla_antes_de_tocar_nada SKIPPED [ 44%]
+tests/unit/test_fleet_backup_restore.py::test_metadatos_no_json_fallan_en_ambos_modos[--replay] SKIPPED [ 45%]
+tests/unit/test_fleet_backup_restore.py::test_metadatos_no_json_fallan_en_ambos_modos[--no-replay] SKIPPED [ 45%]
+tests/unit/test_fleet_backup_restore.py::test_metadatos_de_otro_respaldo_fallan[--replay] SKIPPED [ 45%]
+tests/unit/test_fleet_backup_restore.py::test_metadatos_de_otro_respaldo_fallan[--no-replay] SKIPPED [ 46%]
+tests/unit/test_fleet_backup_restore.py::test_dump_alterado_no_coincide_con_su_checksum[--replay] SKIPPED [ 46%]
+tests/unit/test_fleet_backup_restore.py::test_dump_alterado_no_coincide_con_su_checksum[--no-replay] SKIPPED [ 46%]
+tests/unit/test_fleet_backup_restore.py::test_dump_truncado_no_coincide_en_tamano SKIPPED [ 47%]
+tests/unit/test_fleet_backup_restore.py::test_replay_con_metadatos_sin_offsets_falla SKIPPED [ 47%]
+tests/unit/test_fleet_backup_restore.py::test_replay_con_offsets_invalidos_falla[vacios] SKIPPED [ 47%]
+tests/unit/test_fleet_backup_restore.py::test_replay_con_offsets_invalidos_falla[negativo] SKIPPED [ 48%]
+tests/unit/test_fleet_backup_restore.py::test_replay_con_offsets_invalidos_falla[texto] SKIPPED [ 48%]
+tests/unit/test_fleet_backup_restore.py::test_replay_con_offsets_invalidos_falla[decimal] SKIPPED [ 49%]
+tests/unit/test_fleet_backup_restore.py::test_replay_con_offsets_invalidos_falla[particion-repetida] SKIPPED [ 49%]
+tests/unit/test_fleet_backup_restore.py::test_replay_con_grupo_distinto_falla SKIPPED [ 49%]
+tests/unit/test_fleet_backup_restore.py::test_replay_con_particion_inexistente_falla SKIPPED [ 50%]
+tests/unit/test_fleet_backup_restore.py::test_replay_con_kafka_caido_falla SKIPPED [ 50%]
+tests/unit/test_fleet_backup_restore.py::test_dump_que_pg_restore_no_reconoce_falla SKIPPED [ 50%]
+tests/unit/test_fleet_backup_restore.py::test_dump_s3_inexistente_falla SKIPPED [ 51%]
+tests/unit/test_fleet_backup_restore.py::test_argumentos_invalidos_no_ejecutan_nada[sin-modo] SKIPPED [ 51%]
+tests/unit/test_fleet_backup_restore.py::test_argumentos_invalidos_no_ejecutan_nada[sin-yes] SKIPPED [ 52%]
+tests/unit/test_fleet_backup_restore.py::test_argumentos_invalidos_no_ejecutan_nada[dos-modos] SKIPPED [ 52%]
+tests/unit/test_fleet_backup_restore.py::test_argumentos_invalidos_no_ejecutan_nada[sin-origen] SKIPPED [ 52%]
+tests/unit/test_fleet_backup_restore.py::test_argumentos_invalidos_no_ejecutan_nada[opcion-desconocida] SKIPPED [ 53%]
+tests/unit/test_fleet_backup_restore.py::test_nombre_de_respaldo_inesperado_falla SKIPPED [ 53%]
+tests/unit/test_loadtest_prepare.py::test_cuotas_exactas_por_bloque PASSED [ 53%]
+tests/unit/test_loadtest_prepare.py::test_bloque_incompleto_por_mayor_resto PASSED [ 54%]
+tests/unit/test_loadtest_prepare.py::test_reproducible_con_la_misma_semilla_y_distinto_con_otra PASSED [ 54%]
+tests/unit/test_loadtest_prepare.py::test_reenvios_exactos_de_un_evento_previo PASSED [ 54%]
+tests/unit/test_loadtest_prepare.py::test_eventos_nuevos_validos_unicos_y_vehiculos_estables PASSED [ 55%]
+tests/unit/test_loadtest_prepare.py::test_invalidos_fallan_por_la_regla_de_latitud PASSED [ 55%]
+tests/unit/test_loadtest_prepare.py::test_identidades_unicas_esperadas_no_cuentan_reenvios PASSED [ 56%]
+tests/unit/test_loadtest_prepare.py::test_run_id_invalido[] PASSED       [ 56%]
+tests/unit/test_loadtest_prepare.py::test_run_id_invalido[con espacio] PASSED [ 56%]
+tests/unit/test_loadtest_prepare.py::test_run_id_invalido[xxxxxxxxxxxxxxxxxxxxxxxxx] PASSED [ 57%]
+tests/unit/test_loadtest_prepare.py::test_run_id_invalido[-empieza] PASSED [ 57%]
+tests/unit/test_loadtest_prepare.py::test_cli_escribe_meta_y_dataset PASSED [ 57%]
+tests/unit/test_producer_replacement.py::test_error_fatal_reemplaza_el_productor_y_el_siguiente_envio_confirma[error0] PASSED [ 58%]
+tests/unit/test_producer_replacement.py::test_error_fatal_reemplaza_el_productor_y_el_siguiente_envio_confirma[error1] PASSED [ 58%]
+tests/unit/test_producer_replacement.py::test_error_fatal_reemplaza_el_productor_y_el_siguiente_envio_confirma[error2] PASSED [ 59%]
+tests/unit/test_producer_replacement.py::test_muchos_fallos_simultaneos_crean_un_solo_productor PASSED [ 59%]
+tests/unit/test_producer_replacement.py::test_si_kafka_aun_no_responde_conserva_el_anterior_y_reintenta_con_el_siguiente_error PASSED [ 59%]
+tests/unit/test_producer_replacement.py::test_los_intentos_de_reemplazo_respetan_el_intervalo_minimo PASSED [ 60%]
+tests/unit/test_producer_replacement.py::test_error_transitorio_no_reemplaza_el_productor PASSED [ 60%]
+tests/unit/test_producer_replacement.py::test_tarea_de_envio_terminada_tambien_cuenta_como_productor_inservible PASSED [ 60%]
+tests/unit/test_producer_replacement.py::test_si_el_anterior_no_cierra_a_tiempo_se_fuerza_el_cierre PASSED [ 61%]
+tests/unit/test_producer_replacement.py::test_stop_cierra_el_productor_actual_y_no_reemplaza_mas PASSED [ 61%]
+tests/unit/test_producer_replacement.py::test_api_503_y_el_reenvio_con_el_mismo_event_id_recibe_202 PASSED [ 61%]
+tests/unit/test_producer_replacement.py::test_lote_queda_retryable_y_el_reenvio_se_acepta PASSED [ 62%]
+tests/unit/test_read_timeout.py::test_consulta_colgada_supera_el_timeout_se_cancela_y_descarta_la_conexion PASSED [ 62%]
+tests/unit/test_read_timeout.py::test_adquisicion_de_conexion_colgada_tambien_respeta_el_timeout PASSED [ 63%]
+tests/unit/test_read_timeout.py::test_lectura_normal_no_descarta_conexiones PASSED [ 63%]
+tests/unit/test_read_timeout.py::test_hub_con_lectura_colgada_degrada_conserva_snapshot_y_se_recupera PASSED [ 63%]
+tests/unit/test_read_timeout.py::test_get_vehicles_responde_503_cuando_la_lectura_se_cuelga PASSED [ 64%]
+tests/unit/test_reconcile.py::test_ejecucion_correcta_sin_discrepancias PASSED [ 64%]
+tests/unit/test_reconcile.py::test_falta_un_confirmado_y_el_lag_cero_no_lo_oculta PASSED [ 64%]
+tests/unit/test_reconcile.py::test_fila_historica_duplicada PASSED       [ 65%]
+tests/unit/test_reconcile.py::test_contenido_distinto_y_tolerancia_de_float32 PASSED [ 65%]
+tests/unit/test_reconcile.py::test_hash_del_contenido_en_ingested_events PASSED [ 66%]
+tests/unit/test_reconcile.py::test_invalido_persistido_y_fila_desconocida PASSED [ 66%]
+tests/unit/test_reconcile.py::test_ambiguos_se_informan_aparte_persistidos_o_no PASSED [ 66%]
+tests/unit/test_reconcile.py::test_reenvio_confirmado_cubre_un_original_ambiguo PASSED [ 67%]
+tests/unit/test_reconcile.py::test_posicion_actual_con_desempate_por_event_id PASSED [ 67%]
+tests/unit/test_reconcile.py::test_persistido_sin_envio PASSED           [ 67%]
+tests/unit/test_reconcile.py::test_lectura_de_la_salida_json_de_k6 PASSED [ 68%]
+tests/unit/test_reconcile.py::test_percentiles PASSED                    [ 68%]
+tests/unit/test_simulator.py::test_reintento_reutiliza_el_mismo_event_id PASSED [ 69%]
+tests/unit/test_simulator.py::test_422_no_se_reintenta PASSED            [ 69%]
+tests/unit/test_simulator.py::test_simulacion_envia_ids_estables_event_id_nuevos_y_fechas_utc PASSED [ 69%]
+tests/unit/test_simulator.py::test_recorridos_reproducibles_con_la_misma_semilla PASSED [ 70%]
+tests/unit/test_snapshot_hub.py::test_snapshot_inicial_al_suscribirse PASSED [ 70%]
+tests/unit/test_snapshot_hub.py::test_solo_emite_snapshot_cuando_cambia_el_estado_visible PASSED [ 70%]
+tests/unit/test_snapshot_hub.py::test_una_lectura_compartida_para_varios_clientes PASSED [ 71%]
+tests/unit/test_snapshot_hub.py::test_error_de_bd_se_comunica_y_se_recupera PASSED [ 71%]
+tests/unit/test_snapshot_hub.py::test_recuperacion_emite_snapshot_aunque_el_estado_no_cambie PASSED [ 71%]
+tests/unit/test_snapshot_hub.py::test_cliente_lento_no_acumula_memoria PASSED [ 72%]
+tests/unit/test_snapshot_hub.py::test_stream_envia_heartbeat_y_libera_la_suscripcion PASSED [ 72%]
+tests/unit/test_snapshot_hub.py::test_stream_cancelado_libera_la_suscripcion PASSED [ 73%]
+tests/unit/test_snapshot_hub.py::test_formato_sse PASSED                 [ 73%]
+tests/unit/test_snapshot_hub.py::test_get_vehicles_devuelve_utc_y_fecha_de_generacion PASSED [ 73%]
+tests/unit/test_snapshot_hub.py::test_get_vehicles_503_si_falla_la_bd PASSED [ 74%]
+tests/unit/test_stop_rule.py::test_mas_de_20_minutos_genera_alerta_con_duracion_observada PASSED [ 74%]
+tests/unit/test_stop_rule.py::test_exactamente_20_minutos_no_alerta_y_un_segundo_mas_si PASSED [ 74%]
+tests/unit/test_stop_rule.py::test_el_paso_del_tiempo_sin_muestras_no_aumenta_la_duracion PASSED [ 75%]
+tests/unit/test_stop_rule.py::test_frontera_del_radio PASSED             [ 75%]
+tests/unit/test_stop_rule.py::test_detenido_fuera_de_toda_zona_no_alerta PASSED [ 76%]
+tests/unit/test_stop_rule.py::test_salir_de_la_zona_rompe_el_tramo PASSED [ 76%]
+tests/unit/test_stop_rule.py::test_zonas_superpuestas_generan_una_alerta_por_zona PASSED [ 76%]
+tests/unit/test_stop_rule.py::test_muestra_de_movimiento_rompe_el_tramo PASSED [ 77%]
+tests/unit/test_stop_rule.py::test_velocidad_igual_al_umbral_cuenta_como_detencion PASSED [ 77%]
+tests/unit/test_stop_rule.py::test_ultima_muestra_en_movimiento_no_alerta PASSED [ 77%]
+tests/unit/test_stop_rule.py::test_desplazamiento_respecto_a_la_primera_muestra PASSED [ 78%]
+tests/unit/test_stop_rule.py::test_desplazamiento_excesivo_inicia_un_tramo_nuevo PASSED [ 78%]
+tests/unit/test_stop_rule.py::test_interrupcion_de_muestras PASSED       [ 78%]
+tests/unit/test_stop_rule.py::test_ultima_muestra_desactualizada_da_evidencia_insuficiente PASSED [ 79%]
+tests/unit/test_stop_rule.py::test_vehiculo_en_movimiento_desactualizado_tambien_es_insuficiente PASSED [ 79%]
+tests/unit/test_stop_rule.py::test_duplicados_no_cambian_el_resultado PASSED [ 80%]
+tests/unit/test_stop_rule.py::test_empate_de_timestamp_usa_el_mayor_event_id PASSED [ 80%]
+tests/unit/test_stop_rule.py::test_el_orden_de_entrada_no_importa PASSED [ 80%]
+tests/unit/test_stop_rule.py::test_evento_atrasado_de_movimiento_retira_la_alerta PASSED [ 81%]
+tests/unit/test_stop_rule.py::test_evento_atrasado_que_cubre_una_interrupcion_crea_la_alerta PASSED [ 81%]
+tests/unit/test_stop_rule.py::test_inicio_truncado_por_la_ventana PASSED [ 81%]
+tests/unit/test_stop_rule.py::test_identificador_estable_para_la_misma_detencion PASSED [ 82%]
+tests/unit/test_stop_rule.py::test_una_detencion_nueva_tiene_otro_identificador PASSED [ 82%]
+tests/unit/test_stop_rule.py::test_resultado_determinista PASSED         [ 83%]
+tests/unit/test_stop_rule.py::test_haversine PASSED                      [ 83%]
+tests/unit/test_stop_rule.py::test_evaluacion_completa_de_la_flota PASSED [ 83%]
+tests/unit/test_stop_rule.py::test_limite_de_vehiculos_marca_la_evaluacion_como_parcial PASSED [ 84%]
+tests/unit/test_stop_rule.py::test_limite_de_filas_descarta_el_vehiculo_cortado PASSED [ 84%]
+tests/unit/test_stop_rule.py::test_limite_de_filas_justo_en_el_borde_de_un_vehiculo PASSED [ 84%]
+tests/unit/test_stop_rule.py::test_regresion_19_minutos_mas_2_futuros_no_alerta PASSED [ 85%]
+tests/unit/test_stop_rule.py::test_al_avanzar_el_reloj_las_muestras_futuras_participan PASSED [ 85%]
+tests/unit/test_stop_rule.py::test_vehiculo_con_solo_muestras_futuras_es_evidencia_insuficiente PASSED [ 85%]
+tests/unit/test_stop_rule.py::test_muestra_futura_no_oculta_una_ultima_muestra_desactualizada PASSED [ 86%]
+tests/unit/test_stop_rule.py::test_vehiculos_con_solo_muestras_futuras_cuentan_en_la_cobertura PASSED [ 86%]
+tests/unit/test_stop_rule.py::test_tope_de_vehiculos_con_solo_muestras_futuras_es_parcial PASSED [ 87%]
+tests/acceptance/test_agent_service.py::test_chat_por_el_mismo_origen_del_portal PASSED [ 87%]
+tests/acceptance/test_agent_service.py::test_herramientas_reales_contra_la_api PASSED [ 87%]
+tests/acceptance/test_agent_service.py::test_proveedor_real SKIPPED      [ 88%]
+tests/acceptance/test_alerts.py::test_zonas_activas_de_demostracion PASSED [ 88%]
+tests/acceptance/test_alerts.py::test_alerta_y_retiro_por_evento_atrasado PASSED [ 88%]
+tests/acceptance/test_alerts.py::test_historial_bloqueado_da_503_degrada_alertas_y_se_recupera PASSED [ 89%]
+tests/acceptance/test_alerts.py::test_muestras_futuras_no_cuentan_hasta_su_hora PASSED [ 89%]
+tests/acceptance/test_batch_ingestion.py::test_lote_con_atrasado_invalido_y_reenvio_sin_duplicados PASSED [ 90%]
+tests/acceptance/test_batch_ingestion.py::test_limites_del_lote_en_el_stack PASSED [ 90%]
+tests/acceptance/test_crash_recovery.py::test_at4_caida_entre_commit_de_bd_y_commit_de_offset SKIPPED [ 90%]
+tests/acceptance/test_dlq.py::test_mensaje_invalido_en_kafka_llega_a_dlq_y_se_confirma_su_offset PASSED [ 91%]
+tests/acceptance/test_event_id_conflicts.py::test_reproceso_de_mensaje_conflictivo_conserva_original_y_registra_una_vez PASSED [ 91%]
+tests/acceptance/test_event_id_conflicts.py::test_reenvio_identico_no_es_conflicto PASSED [ 91%]
+tests/acceptance/test_event_id_conflicts.py::test_conflicto_por_la_api_queda_registrado PASSED [ 92%]
+tests/acceptance/test_ingestion.py::test_at1_ingesta_normal PASSED       [ 92%]
+tests/acceptance/test_ingestion.py::test_at2_reenvio_mismo_evento PASSED [ 92%]
+tests/acceptance/test_ingestion.py::test_at2_mismo_id_con_payload_distinto_conserva_el_primero PASSED [ 93%]
+tests/acceptance/test_ingestion.py::test_at3_posicion_antigua_despues_de_reciente PASSED [ 93%]
+tests/acceptance/test_ingestion.py::test_at3_empate_de_captured_at_gana_event_id_mayor[menor-primero] PASSED [ 94%]
+tests/acceptance/test_ingestion.py::test_at3_empate_de_captured_at_gana_event_id_mayor[mayor-primero] PASSED [ 94%]
+tests/acceptance/test_ingestion.py::test_api_rechaza_eventos_invalidos[patch0] PASSED [ 94%]
+tests/acceptance/test_ingestion.py::test_api_rechaza_eventos_invalidos[patch1] PASSED [ 95%]
+tests/acceptance/test_ingestion.py::test_api_rechaza_eventos_invalidos[patch2] PASSED [ 95%]
+tests/acceptance/test_ingestion.py::test_api_rechaza_eventos_invalidos[patch3] PASSED [ 95%]
+tests/acceptance/test_ingestion.py::test_api_rechaza_eventos_invalidos[patch4] PASSED [ 96%]
+tests/acceptance/test_ingestion.py::test_api_rechaza_eventos_invalidos[patch5] PASSED [ 96%]
+tests/acceptance/test_ingestion.py::test_api_rechaza_fecha_futura PASSED [ 97%]
+tests/acceptance/test_read_timeout_lock.py::test_lectura_bloqueada_da_503_degrada_el_sse_y_se_recupera PASSED [ 97%]
+tests/acceptance/test_vehicles_realtime.py::test_get_vehicles_devuelve_la_ultima_posicion PASSED [ 97%]
+tests/acceptance/test_vehicles_realtime.py::test_sse_envia_snapshot_inicial_con_datos_confirmados PASSED [ 98%]
+tests/acceptance/test_vehicles_realtime.py::test_sse_actualiza_despues_de_persistir_una_posicion PASSED [ 98%]
+tests/acceptance/test_vehicles_realtime.py::test_sse_conserva_la_posicion_mas_reciente_ante_un_evento_atrasado PASSED [ 98%]
+tests/acceptance/test_vehicles_realtime.py::test_tras_reconectar_llega_un_snapshot_completo PASSED [ 99%]
+tests/acceptance/test_vehicles_realtime.py::test_portal_entrega_sse_sin_buffering PASSED [ 99%]
+tests/acceptance/test_vehicles_realtime.py::test_portal_mantiene_rest_e_ingesta_en_el_mismo_origen PASSED [100%]
+
+=============================== warnings summary ===============================
+../usr/local/lib/python3.12/site-packages/starlette/testclient.py:40
+  /usr/local/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+SKIPPED [1] tests/unit/test_check_compose_ports.py:11: infra/ no está disponible
+SKIPPED [1] tests/unit/test_fleet_backup_restore.py:184: requiere bash, jq y sha256sum en Linux (ver infra/scripts/validate.sh backup)
+SKIPPED [1] tests/unit/test_fleet_backup_restore.py:220: requiere bash, jq y sha256sum en Linux (ver infra/scripts/validate.sh backup)
+SKIPPED [1] tests/unit/test_fleet_backup_restore.py:230: requiere bash, jq y sha256sum en Linux (ver infra/scripts/validate.sh backup)
+SKIPPED [1] tests/unit/test_fleet_backup_restore.py:237: requiere bash, jq y sha256sum en Linux (ver infra/scripts/validate.sh backup)
+SKIPPED [1] tests/unit/test_fleet_backup_restore.py:247: requiere bash, jq y sha256sum en Linux (ver infra/scripts/validate.sh backup)
+SKIPPED [1] tests/unit/test_fleet_backup_restore.py:268: requiere bash, jq y sha256sum en Linux (ver infra/scripts/validate.sh backup)
+SKIPPED [1] tests/unit/test_fleet_backup_restore.py:282: requiere bash, jq y sha256sum en Linux (ver infra/scripts/validate.sh backup)
+SKIPPED [1] tests/unit/test_fleet_backup_restore.py:293: requiere bash, jq y sha256sum en Linux (ver infra/scripts/validate.sh backup)
+SKIPPED [1] tests/unit/test_fleet_backup_restore.py:306: requiere bash, jq y sha256sum en Linux (ver infra/scripts/validate.sh backup)
+SKIPPED [2] tests/unit/test_fleet_backup_restore.py:315: requiere bash, jq y sha256sum en Linux (ver infra/scripts/validate.sh backup)
+SKIPPED [2] tests/unit/test_fleet_backup_restore.py:325: requiere bash, jq y sha256sum en Linux (ver infra/scripts/validate.sh backup)
+SKIPPED [2] tests/unit/test_fleet_backup_restore.py:339: requiere bash, jq y sha256sum en Linux (ver infra/scripts/validate.sh backup)
+SKIPPED [1] tests/unit/test_fleet_backup_restore.py:350: requiere bash, jq y sha256sum en Linux (ver infra/scripts/validate.sh backup)
+SKIPPED [1] tests/unit/test_fleet_backup_restore.py:360: requiere bash, jq y sha256sum en Linux (ver infra/scripts/validate.sh backup)
+SKIPPED [5] tests/unit/test_fleet_backup_restore.py:370: requiere bash, jq y sha256sum en Linux (ver infra/scripts/validate.sh backup)
+SKIPPED [1] tests/unit/test_fleet_backup_restore.py:393: requiere bash, jq y sha256sum en Linux (ver infra/scripts/validate.sh backup)
+SKIPPED [1] tests/unit/test_fleet_backup_restore.py:405: requiere bash, jq y sha256sum en Linux (ver infra/scripts/validate.sh backup)
+SKIPPED [1] tests/unit/test_fleet_backup_restore.py:417: requiere bash, jq y sha256sum en Linux (ver infra/scripts/validate.sh backup)
+SKIPPED [1] tests/unit/test_fleet_backup_restore.py:426: requiere bash, jq y sha256sum en Linux (ver infra/scripts/validate.sh backup)
+SKIPPED [1] tests/unit/test_fleet_backup_restore.py:442: requiere bash, jq y sha256sum en Linux (ver infra/scripts/validate.sh backup)
+SKIPPED [5] tests/unit/test_fleet_backup_restore.py:447: requiere bash, jq y sha256sum en Linux (ver infra/scripts/validate.sh backup)
+SKIPPED [1] tests/unit/test_fleet_backup_restore.py:464: requiere bash, jq y sha256sum en Linux (ver infra/scripts/validate.sh backup)
+SKIPPED [1] tests/acceptance/test_agent_service.py:99: opcional: AGENT_REAL_PROVIDER_TEST=1 y credencial real
+SKIPPED [1] tests/acceptance/test_crash_recovery.py:38: requiere docker compose
+============ 236 passed, 36 skipped, 1 warning in 192.97s (0:03:12) ============
+
+# fin: 2026-11-08T16:52:26Z  código: 0  duración: 628 s

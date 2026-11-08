@@ -1,0 +1,22 @@
+# 11-pruebas-verificador-puertos
+# inicio: 2026-11-08T17:25:22Z
+# comando: docker run --rm -v 'C:/xampp/htdocs/TDAgentico:/w:ro' -w /w python:3.12-slim sh -c 'pip install -q --disable-pip-version-check pytest && python -m pytest -v -p no:cacheprovider -o addopts= tests/unit/test_check_compose_ports.py'
+
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.
+============================= test session starts ==============================
+platform linux -- Python 3.12.16, pytest-9.2.0, pluggy-1.7.0 -- /usr/local/bin/python
+rootdir: /w
+configfile: pytest.ini
+collecting ... collected 7 items
+
+tests/unit/test_check_compose_ports.py::test_configuracion_valida PASSED [ 14%]
+tests/unit/test_check_compose_ports.py::test_rechaza_puerto_interno_heredado PASSED [ 28%]
+tests/unit/test_check_compose_ports.py::test_rechaza_puerto_expuesto_sin_publicar_fuera_de_caddy PASSED [ 42%]
+tests/unit/test_check_compose_ports.py::test_rechaza_puerto_extra_en_caddy PASSED [ 57%]
+tests/unit/test_check_compose_ports.py::test_rechaza_listener_externo_de_kafka PASSED [ 71%]
+tests/unit/test_check_compose_ports.py::test_rechaza_credenciales_locales PASSED [ 85%]
+tests/unit/test_check_compose_ports.py::test_rechaza_volumen_fuera_de_data PASSED [100%]
+
+============================== 7 passed in 1.14s ===============================
+
+# fin: 2026-11-08T17:26:14Z  código: 0  duración: 52 s

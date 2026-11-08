@@ -1,0 +1,11 @@
+# 09-workflow-orden
+# inicio: 2026-11-08T17:02:54Z
+# comando: docker run --rm -v 'C:/xampp/htdocs/TDAgentico:/w:ro' -w /w python:3.12-slim sh -c 'pip install -q --disable-pip-version-check pyyaml && python scripts/check_workflow_order.py .github/workflows/*.yml'
+
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.
+.github/workflows/infra.yml: job 'terraform': actions/checkout@v4 -> fmt, init -backend=false, validate, terraform test y plantilla de user_data -> tflint -> trivy config
+.github/workflows/infra.yml: job 'deploy-files': actions/checkout@v4 -> bash -n y shellcheck -> Compose renderizado y puertos del override -> Pruebas del verificador de puertos -> Respaldo y restauración con AWS CLI y Compose simulados -> Caddyfile (con y sin dominio) -> Instalación de Docker y Compose en Amazon Linux 2023
+.github/workflows/mobile.yml: job 'checks': actions/checkout@v4 -> Orden de pasos de los workflows (checkout antes de usar el repositorio) -> actions/setup-node@v4 -> Instalar dependencias (lockfile) -> Comprobar tipos -> Pruebas
+.github/workflows/mobile.yml: job 'android-build': actions/checkout@v4 -> Verificar credenciales de EAS -> actions/setup-node@v4 -> expo/expo-github-action@v8 -> Instalar dependencias (lockfile) -> Compilación Android en EAS
+
+# fin: 2026-11-08T17:03:15Z  código: 0  duración: 21 s

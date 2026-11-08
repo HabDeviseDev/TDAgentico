@@ -1,0 +1,16 @@
+paso	código	segundos	comando
+00-entorno	0	73	date -u; echo "commit: $(git rev-parse HEAD)"; git status --short; docker version --format "Docker cliente {{.Client.Version}} / servidor {{.Server.Version}}"; docker compose version; docker info --format "CPU: {{.NCPU}}  Memoria: {{.MemTotal}} bytes"
+01-stack-build-up	0	323	docker compose up -d --build --wait
+02-api-productor	0	23	docker compose exec -T api python -c "import app.ingest as m; print(\"ResilientProducer presente:\", hasattr(m, \"ResilientProducer\"))"; docker compose ps --format "{{.Service}}\t{{.State}}\t{{.Status}}"
+03-pytest-unitarias-aceptacion	0	628	docker compose --profile test run --rm --build -T tests -v -rfEs -p no:cacheprovider
+04-demo-alertas	0	66	docker compose --profile demo run --rm -T demo-alerts --once
+05-movil-e2e	0	210	docker run --rm --network fleet_default -e API_URL=http://api:8000 -v 'C:/xampp/htdocs/TDAgentico/services/mobile:/app' -v fleet-mobile-modules:/app/node_modules -w /app node:22-bookworm-slim sh -c 'npm ci --no-audit --no-fund && npm run e2e'
+06-stack-stop	0	25	docker compose stop
+07-portal-tipos-build-vitest-con-cache	0	86	docker build --progress=plain --target test services/portal
+08-movil-tipos-pruebas-export	0	238	docker run --rm -v 'C:/xampp/htdocs/TDAgentico/services/mobile:/app' -v fleet-mobile-modules:/app/node_modules -w /app node:22-bookworm-slim sh -c 'npm ci --no-audit --no-fund && npm run typecheck && npm test && npx expo export --platform android --output-dir /tmp/dist'
+09-workflow-orden	0	21	docker run --rm -v 'C:/xampp/htdocs/TDAgentico:/w:ro' -w /w python:3.12-slim sh -c 'pip install -q --disable-pip-version-check pyyaml && python scripts/check_workflow_order.py .github/workflows/*.yml'
+10-infra-validate-all	0	1002	infra/scripts/validate.sh all
+05b-movil-sin-duplicados	0	33	docker compose up -d --wait timescaledb && docker compose exec -T timescaledb psql -U fleet -d fleet -c "WITH v AS (SELECT vehicle_id FROM position_history WHERE vehicle_id LIKE 'MOVIL-DEMO-%' ORDER BY ingested_at DESC LIMIT 1) SELECT h.vehicle_id, count(*) AS filas_historial, count(DISTINCT h.event_id) AS event_ids_distintos, (SELECT count(*) FROM ingested_events e WHERE e.vehicle_id = h.vehicle_id) AS ingested_events FROM position_history h JOIN v USING (vehicle_id) GROUP BY h.vehicle_id"
+06-stack-stop	0	5	docker compose stop
+07-portal-tipos-build-vitest	0	211	docker build --no-cache --progress=plain --target test services/portal
+11-pruebas-verificador-puertos	0	52	docker run --rm -v 'C:/xampp/htdocs/TDAgentico:/w:ro' -w /w python:3.12-slim sh -c 'pip install -q --disable-pip-version-check pytest && python -m pytest -v -p no:cacheprovider -o addopts= tests/unit/test_check_compose_ports.py'
