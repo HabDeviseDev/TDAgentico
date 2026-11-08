@@ -1,9 +1,17 @@
 #!/bin/bash
 # Verificación final de la entrega. Guarda la salida completa de cada paso en
 # docs/verificacion/<fecha>/NN-<paso>.log y un resumen con código de salida y
-# duración (resumen.tsv). Un paso que falla no detiene los siguientes.
+# duración (resumen.tsv).
+#
+# Cada paso corre en "bash -o errexit -o pipefail": un comando intermedio que
+# falla (también dentro de una tubería) hace fallar el paso, aunque el último
+# comando del bloque termine bien. Un paso que falla no detiene los
+# siguientes, pero el script termina con código 1 y lista los pasos fallidos.
 #
 # Uso (desde la raíz, con Docker): scripts/verificacion_final.sh [AAAA-MM-DD] [prefijos de pasos...]
+#
+# Solo para pruebas (tests/unit/test_verificacion_final.py): VERIF_OUT_ROOT
+# cambia la carpeta de salida y VALIDATE_SH el validador de infraestructura.
 #
 # No borra volúmenes ni datos: no usa "down -v". Detiene el stack con
 # "docker compose stop" antes de los pasos que no lo necesitan, para no
@@ -16,7 +24,9 @@ root_host=$(pwd -W 2>/dev/null || pwd)
 day=${1:-$(date -u +%Y-%m-%d)}
 shift || true
 only=("$@")  # opcional: ejecutar solo los pasos con estos prefijos (p. ej. 05b 06 07)
-out="docs/verificacion/$day"
+out="${VERIF_OUT_ROOT:-docs/verificacion}/$day"
+validate_sh=${VALIDATE_SH:-infra/scripts/validate.sh}
+failed=()
 mkdir -p "$out"
 summary="$out/resumen.tsv"
 if [ ${#only[@]} -eq 0 ] || [ ! -f "$summary" ]; then
@@ -41,8 +51,9 @@ step() {
     echo "# comando: $*"
     echo
   } > "$log"
-  bash -c "$*" >> "$log" 2>&1
+  bash -o errexit -o pipefail -c "$*" >> "$log" 2>&1
   rc=$?
+  [ "$rc" -eq 0 ] || failed+=("$name")
   {
     echo
     echo "# fin: $(date -u +%Y-%m-%dT%H:%M:%SZ)  código: $rc  duración: $(( $(date +%s) - start )) s"
@@ -85,8 +96,13 @@ step 06-stack-stop 'docker compose stop'
 step 07-portal-tipos-build-vitest 'docker build --no-cache --progress=plain --target test services/portal'
 step 08-movil-tipos-pruebas-export "docker run --rm -v '$root_host/services/mobile:/app' -v fleet-mobile-modules:/app/node_modules -w /app node:22-bookworm-slim sh -c 'npm ci --no-audit --no-fund && npm run typecheck && npm test && npx expo export --platform android --output-dir /tmp/dist'"
 step 09-workflow-orden "docker run --rm -v '$root_host:/w:ro' -w /w python:3.12-slim sh -c 'pip install -q --disable-pip-version-check pyyaml && python scripts/check_workflow_order.py .github/workflows/*.yml'"
-step 10-infra-validate-all 'infra/scripts/validate.sh all'
+step 10-infra-validate-all "'$validate_sh' all"
 # La imagen de pruebas no copia infra/: estas pruebas se omiten en el paso 03.
 step 11-pruebas-verificador-puertos "docker run --rm -v '$root_host:/w:ro' -w /w python:3.12-slim sh -c 'pip install -q --disable-pip-version-check pytest && python -m pytest -v -p no:cacheprovider -o addopts= tests/unit/test_check_compose_ports.py'"
 
 echo "Resumen: $summary"
+if [ ${#failed[@]} -gt 0 ]; then
+  echo "FALLARON ${#failed[@]} paso(s): ${failed[*]}" >&2
+  exit 1
+fi
+echo "Todos los pasos ejecutados terminaron con código 0"

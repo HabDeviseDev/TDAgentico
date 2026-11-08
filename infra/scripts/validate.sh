@@ -3,7 +3,7 @@
 # herramientas corren en contenedores con versión fija (solo requiere Docker).
 # La usan el desarrollador y el workflow .github/workflows/infra.yml.
 #
-# Uso: infra/scripts/validate.sh [terraform|tftest|user_data|tflint|trivy|shell|compose|caddy|install|backup|all]
+# Uso: infra/scripts/validate.sh [terraform|tftest|user_data|tflint|trivy|shell|compose|caddy|install|backup|verificacion|all]
 #
 # Cubre la validación SINTÁCTICA y estática. No sustituye: un plan con
 # proveedor y cuenta reales, un despliegue real ni las pruebas de recuperación
@@ -35,7 +35,7 @@ SCRIPTS=(
   infra/deploy/bin/fleet-health infra/deploy/bin/fleet-ops
   infra/deploy/bin/fleet-backup infra/deploy/bin/fleet-restore
   infra/terraform/templates/install-docker.sh infra/terraform/templates/fleet-deploy.sh
-  infra/scripts/validate.sh
+  infra/scripts/validate.sh scripts/verificacion_final.sh
 )
 
 check_terraform() {
@@ -142,6 +142,15 @@ check_backup() {
      python3 -m pytest -q tests/unit/test_fleet_backup_restore.py -p no:cacheprovider -o addopts=""'
 }
 
+# scripts/verificacion_final.sh con docker, git y validate.sh simulados
+# (tests/unit/test_verificacion_final.py): fallos acumulados y código final.
+check_verificacion() {
+  echo "== scripts/verificacion_final.sh con comandos simulados"
+  docker run --rm -v "$host_root:/w:ro" -w /w "$ALPINE_IMAGE" sh -c \
+    'apk add --no-cache -q bash py3-pytest >/dev/null &&
+     python3 -m pytest -q tests/unit/test_verificacion_final.py -p no:cacheprovider -o addopts=""'
+}
+
 check_caddy() {
   echo "== caddy validate (con y sin dominio)"
   for site in ":80" "flota.example.com"; do
@@ -163,8 +172,8 @@ check_install() {
 
 target="${1:-all}"
 case "$target" in
-  all) for t in terraform tflint trivy shell compose backup caddy install; do "check_$t"; done ;;
-  terraform | tftest | user_data | tflint | trivy | shell | compose | caddy | install | backup) "check_$target" ;;
+  all) for t in terraform tflint trivy shell compose backup verificacion caddy install; do "check_$t"; done ;;
+  terraform | tftest | user_data | tflint | trivy | shell | compose | caddy | install | backup | verificacion) "check_$target" ;;
   *) echo "objetivo desconocido: $target" >&2; exit 2 ;;
 esac
 echo "OK ($target)"

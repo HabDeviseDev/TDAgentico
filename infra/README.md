@@ -359,7 +359,7 @@ terraform destroy
 Requiere solo Docker:
 
 ```bash
-infra/scripts/validate.sh all      # o un objetivo: terraform, tftest, user_data, tflint, trivy, shell, compose, backup, caddy, install
+infra/scripts/validate.sh all      # o un objetivo: terraform, tftest, user_data, tflint, trivy, shell, compose, backup, verificacion, caddy, install
 ```
 
 | Objetivo | Qué ejecuta |
@@ -370,7 +370,8 @@ infra/scripts/validate.sh all      # o un objetivo: terraform, tftest, user_data
 | `backup` | `fleet-backup` y `fleet-restore` reales con AWS CLI y Docker Compose simulados ([tests/unit/test_fleet_backup_restore.py](../tests/unit/test_fleet_backup_restore.py)), en un contenedor Alpine con `bash` y `jq`. Cubre: subida de volcado y metadatos, metadatos ausentes o inválidos, restauración con y sin replay, y que no haya acciones destructivas si falla la validación previa |
 | `tflint` | Reglas recomendadas del lenguaje Terraform |
 | `trivy` | Errores de configuración HIGH y CRITICAL, con los valores por defecto y con todos los recursos opcionales (`infra/scripts/trivy-all-features.tfvars`). Las excepciones aceptadas están justificadas en `infra/terraform/.trivyignore.yaml` |
-| `shell` | `bash -n` y `shellcheck` de los 9 scripts (incluido `validate.sh`) |
+| `shell` | `bash -n` y `shellcheck` de los 10 scripts (incluidos `validate.sh` y `scripts/verificacion_final.sh`) |
+| `verificacion` | `scripts/verificacion_final.sh` con `docker`, `git` y `validate.sh` simulados ([tests/unit/test_verificacion_final.py](../tests/unit/test_verificacion_final.py)), en Alpine. Cubre: todos los pasos correctos, un paso fallido seguido de otro correcto, un comando intermedio fallido dentro de un bloque y fallos acumulados. Comprueba los logs, el resumen y el código final |
 | `compose` | `docker compose config` del Compose local más el override (todos los perfiles) y `check_compose_ports.py` |
 | `caddy` | `caddy validate`, con y sin dominio |
 | `install` | `install-docker.sh` en un contenedor `amazonlinux:2023`: paquetes, checksums de Compose y Buildx, versiones |

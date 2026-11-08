@@ -11,6 +11,8 @@ on:
       - ".github/workflows/infra.yml"
       - "tests/unit/test_check_compose_ports.py"
       - "tests/unit/test_fleet_backup_restore.py"
+      - "scripts/verificacion_final.sh"
+      - "tests/unit/test_verificacion_final.py"
   push:
     branches: [main]
     paths:
@@ -19,6 +21,8 @@ on:
       - ".github/workflows/infra.yml"
       - "tests/unit/test_check_compose_ports.py"
       - "tests/unit/test_fleet_backup_restore.py"
+      - "scripts/verificacion_final.sh"
+      - "tests/unit/test_verificacion_final.py"
   workflow_dispatch:
 
 permissions:
@@ -56,6 +60,8 @@ jobs:
           python3 -m pytest -q tests/unit/test_check_compose_ports.py -p no:cacheprovider -o addopts=""
       - name: Respaldo y restauración con AWS CLI y Compose simulados
         run: infra/scripts/validate.sh backup
+      - name: Script de verificación final con comandos simulados
+        run: infra/scripts/validate.sh verificacion
       - name: Caddyfile (con y sin dominio)
         run: infra/scripts/validate.sh caddy
       - name: Instalación de Docker y Compose en Amazon Linux 2023
