@@ -39,6 +39,7 @@ class ToolCallOut(BaseModel):
     attempts: int
     source: str | None
     source_time_utc: str | None
+    source_time_local: str | None = None
     counts: dict[str, Any]
     error: dict[str, Any] | None
 
@@ -47,6 +48,8 @@ class SourceOut(BaseModel):
     tool: str
     source: str
     time_utc: str | None
+    # Mismo instante en la zona de presentación (ChatResponse.display_timezone).
+    time_local: str | None = None
     status: str
 
 
@@ -71,6 +74,9 @@ class ChatResponse(BaseModel):
     answer: str
     provider: str
     model: str
+    # Zona IANA de los campos *_local y del texto de la respuesta. Los *_utc
+    # conservan el valor original de la API.
+    display_timezone: str
     tools: list[ToolCallOut] = []
     sources: list[SourceOut] = []
     evidence: Evidence = Evidence()

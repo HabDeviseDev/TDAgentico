@@ -253,7 +253,15 @@ h2 { font-size: 1.1rem; }
 .chat-reply-error { border-color: #f5c2c0; }
 .chat-reply .notice { margin-top: 0; }
 .chat-reply .notice p { margin: 0; }
-.chat-answer { margin: 0.2rem 0 0.5rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+.chat-answer { margin: 0.2rem 0 0.5rem; overflow-wrap: anywhere; }
+.chat-answer p { margin: 0 0 0.45rem; }
+.chat-answer ul, .chat-answer ol { margin: 0 0 0.45rem; padding-left: 1.25rem; }
+.chat-answer li { margin-bottom: 0.15rem; }
+.chat-answer > :last-child { margin-bottom: 0; }
+.chat-answer code {
+  padding: 0 0.25rem; border-radius: 4px; background: rgba(127, 127, 127, 0.15);
+  font-size: 0.9em; overflow-wrap: anywhere;
+}
 .badge-status {
   display: inline-block; margin-bottom: 0.3rem; padding: 0 0.45rem; border-radius: 4px;
   background: var(--warn-bg); color: var(--warn); font-size: 0.75rem; font-weight: 600;

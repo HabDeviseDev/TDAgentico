@@ -1,4 +1,4 @@
-import type { ChatResponse, ChatStatus } from "../api/chat";
+import type { ChatResponse, ChatSource, ChatStatus } from "../api/chat";
 
 const toolLabels: Record<string, string> = {
   consultar_posiciones: "Posiciones actuales",
@@ -46,6 +46,16 @@ const severeCodes = new Set([
 
 export function warningSeverity(code: string): "error" | "warn" {
   return severeCodes.has(code) || code.startsWith("model_") ? "error" : "warn";
+}
+
+/**
+ * Hora de una fuente para mostrar: el texto local que calculó el agente (con
+ * su zona), sin volver a convertirlo, y el UTC original para trazabilidad.
+ */
+export function sourceTime(s: ChatSource): { label: string; utc: string } | null {
+  if (!s.time_utc || !s.time_local) return null;
+  const verb = s.tool === "consultar_alertas" ? "evaluado" : "consultado";
+  return { label: `${verb} el ${s.time_local}`, utc: s.time_utc };
 }
 
 /** Vehículos a ofrecer para selección: los que devolvió el agente (no los del texto). */

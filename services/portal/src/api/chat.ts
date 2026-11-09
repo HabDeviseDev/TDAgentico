@@ -26,14 +26,20 @@ export interface ChatToolCall {
   attempts: number;
   source: string | null;
   source_time_utc: string | null;
+  source_time_local: string | null;
   counts: Record<string, number>;
   error: { kind?: string; message?: string } | null;
 }
 
+// Fechas: los campos *_utc conservan el valor original de la API; los
+// *_local los convierte el agente a ChatResponse.display_timezone, con la
+// zona escrita (p. ej. "09/11/2026 10:26:28 America/Bogota"). El portal los
+// muestra tal cual, sin volver a convertir.
 export interface ChatSource {
   tool: string;
   source: string;
   time_utc: string | null;
+  time_local: string | null;
   status: string;
 }
 
@@ -44,12 +50,16 @@ export interface ChatEvidence {
     zone_id: string;
     zone_name: string;
     observed_duration_min: number;
+    started_at_utc: string;
+    started_at_local: string;
     last_sample_at_utc: string;
+    last_sample_at_local: string;
     start_unknown: boolean;
   }>;
   vehicles: Array<{
     vehicle_id: string;
     captured_at_utc: string;
+    captured_at_local: string;
     lat: number;
     lon: number;
     speed_kmh: number;
@@ -62,6 +72,7 @@ export interface ChatEvidence {
     reason: string;
     detail: string;
     last_sample_at_utc: string | null;
+    last_sample_at_local: string | null;
   }>;
 }
 
@@ -71,6 +82,7 @@ export interface ChatResponse {
   answer: string;
   provider: string;
   model: string;
+  display_timezone: string;
   tools: ChatToolCall[];
   sources: ChatSource[];
   evidence: ChatEvidence;

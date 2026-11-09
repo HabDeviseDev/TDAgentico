@@ -3,9 +3,10 @@ import type { ChatResponse } from "../api/chat";
 import type { ChatEntry } from "../hooks/useChat";
 import { useChat } from "../hooks/useChat";
 import {
-  EXAMPLE_QUESTIONS, chatStatusLabel, selectableVehicles, toolLabel, toolStatusLabel, warningSeverity,
+  EXAMPLE_QUESTIONS, chatStatusLabel, selectableVehicles, sourceTime, toolLabel, toolStatusLabel,
+  warningSeverity,
 } from "../lib/chatFormat";
-import { formatTimeLocal } from "../lib/freshness";
+import { ChatMarkdown } from "./ChatMarkdown";
 
 interface Props {
   open: boolean;
@@ -165,7 +166,7 @@ function ResponseView({ response, selectedId, onSelectVehicle }: {
   return (
     <>
       {statusLabel && <span className="badge-status">{statusLabel}</span>}
-      {response.answer && <p className="chat-answer">{response.answer}</p>}
+      {response.answer && <ChatMarkdown className="chat-answer" text={response.answer} />}
 
       {response.warnings.length > 0 && (
         <ul className="chat-warnings">
@@ -200,12 +201,15 @@ function ResponseView({ response, selectedId, onSelectVehicle }: {
 
       {response.sources.length > 0 && (
         <ul className="chat-sources muted small">
-          {response.sources.map((s, i) => (
-            <li key={`${s.tool}-${i}`} title={s.time_utc ? `${s.time_utc} (UTC)` : undefined}>
-              {toolLabel(s.tool)}: {toolStatusLabel(s.status)}
-              {s.time_utc ? ` · ${s.tool === "consultar_alertas" ? "evaluado" : "consultado"} a las ${formatTimeLocal(s.time_utc)}` : ""}
-            </li>
-          ))}
+          {response.sources.map((s, i) => {
+            const at = sourceTime(s);
+            return (
+              <li key={`${s.tool}-${i}`}>
+                {toolLabel(s.tool)}: {toolStatusLabel(s.status)}
+                {at && <> · <UtcTime utc={at.utc} text={at.label} /></>}
+              </li>
+            );
+          })}
         </ul>
       )}
 
@@ -217,7 +221,8 @@ function ResponseView({ response, selectedId, onSelectVehicle }: {
               {ev.alerts.map((a) => (
                 <li key={a.alert_id}>
                   {a.vehicle_id} en {a.zone_name}: {a.start_unknown ? "≥ " : ""}
-                  {a.observed_duration_min} min · última muestra {formatTimeLocal(a.last_sample_at_utc)}
+                  {a.observed_duration_min} min · última muestra{" "}
+                  <UtcTime utc={a.last_sample_at_utc} text={a.last_sample_at_local} />
                 </li>
               ))}
             </ul>
@@ -227,6 +232,9 @@ function ResponseView({ response, selectedId, onSelectVehicle }: {
               {ev.insufficient_evidence.map((i) => (
                 <li key={i.vehicle_id}>
                   {i.vehicle_id}: evidencia insuficiente ({i.reason})
+                  {i.last_sample_at_utc && i.last_sample_at_local && (
+                    <> · última muestra <UtcTime utc={i.last_sample_at_utc} text={i.last_sample_at_local} /></>
+                  )}
                 </li>
               ))}
             </ul>
@@ -236,7 +244,7 @@ function ResponseView({ response, selectedId, onSelectVehicle }: {
               {ev.vehicles.map((v) => (
                 <li key={v.vehicle_id}>
                   {v.vehicle_id}: {v.lat.toFixed(5)}, {v.lon.toFixed(5)} · {v.speed_kmh} km/h ·{" "}
-                  {formatTimeLocal(v.captured_at_utc)}
+                  <UtcTime utc={v.captured_at_utc} text={v.captured_at_local} />
                   {v.stale ? " · desactualizado" : ""}
                 </li>
               ))}
@@ -258,4 +266,9 @@ function ResponseView({ response, selectedId, onSelectVehicle }: {
       </p>
     </>
   );
+}
+
+/** Hora local calculada por el agente; el UTC original queda en dateTime y en el título. */
+function UtcTime({ utc, text }: { utc: string; text: string }) {
+  return <time dateTime={utc} title={`UTC: ${utc}`}>{text}</time>;
 }

@@ -154,10 +154,14 @@ window.fetch = async (input, init) => {
   }
   if (url.endsWith("/v1/chat") && init?.method === "POST") {
     return json({ request_id: "simulacion-1", status: "answered",
-      answer: "[SIMULACIÓN: respuesta preparada, no generada por el modelo] Hay alertas activas en DEMO-Z01. Consulte el panel de alertas para el detalle.",
-      provider: "simulación", model: "respuesta-preparada", tools: [], sources: [],
-      evidence: { alerts: [], vehicles: [], zones: [], insufficient_evidence: [] },
-      vehicle_ids: [], zone_ids: [],
+      answer: "**[SIMULACIÓN: respuesta preparada, no generada por el modelo]**\n\n**BOG-001**\n- **Ubicación:** 4.60000, -74.10000\n- **Velocidad:** 0 km/h\n- **Última lectura:** 09/11/2026 10:26:28 America/Bogota\n\n**Este dato está desactualizado.**",
+      provider: "simulación", model: "respuesta-preparada", display_timezone: "America/Bogota", tools: [],
+      sources: [{ tool: "consultar_posiciones", source: "GET /v1/vehicles", status: "ok",
+        time_utc: "2026-11-09T15:30:34.000000Z", time_local: "09/11/2026 10:30:34 America/Bogota" }],
+      evidence: { alerts: [], zones: [], insufficient_evidence: [], vehicles: [{ vehicle_id: "BOG-001",
+        captured_at_utc: "2026-11-09T15:26:28.000000Z", captured_at_local: "09/11/2026 10:26:28 America/Bogota",
+        lat: 4.6, lon: -74.1, speed_kmh: 0, age_s: 246, stale: true }] },
+      vehicle_ids: ["BOG-001"], zone_ids: [],
       warnings: [{ code: "simulation", message: "Respuesta preparada para la demostración: el agente no está configurado.", tool: null }],
       usage: { steps: 0, max_steps: 5, tool_calls: 0, max_tool_calls: 6, duration_ms: 0 } });
   }

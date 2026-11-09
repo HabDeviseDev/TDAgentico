@@ -25,6 +25,7 @@ from .fleet_client import FleetApiError, FleetClient
 from .model import build_model, classify_model_error
 from .schemas import ChatRequest, ChatResponse, ToolCallOut, Usage
 from .settings import Settings, settings as default_settings
+from .timefmt import LocalClock
 from .tools import FleetTools
 
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
@@ -64,8 +65,11 @@ class AgentService:
             read_timeout_s=cfg.fleet_read_timeout_s, retries=cfg.fleet_retries,
             retry_backoff_s=cfg.fleet_retry_backoff_s, max_response_bytes=cfg.fleet_max_response_bytes,
             transport=transport)
+        # Una zona desconocida en AGENT_DISPLAY_TIMEZONE detiene el arranque
+        # con un error explícito (no se presenta en otra zona en silencio).
         self.tools = FleetTools(self.client, stale_after_s=cfg.stale_after_s,
-                                max_items=cfg.max_tool_items)
+                                max_items=cfg.max_tool_items,
+                                clock=LocalClock(cfg.display_timezone))
         self.limiter = ConcurrencyLimiter(cfg.max_concurrent_chats)
         self.problem = None if model is not None else (cfg.configuration_problem()
                                                        or "Modelo no disponible")
@@ -240,9 +244,11 @@ def _response(cfg: Settings, request_id: str, state: RunState, started: float) -
         answer=state.answer,
         provider=cfg.provider,
         model=cfg.model,
+        display_timezone=cfg.display_timezone,
         tools=[ToolCallOut(name=r.name, arguments=r.arguments, status=r.status, partial=r.partial,
                            truncated=r.truncated, duration_ms=r.duration_ms, attempts=r.attempts,
-                           source=r.source, source_time_utc=r.source_time, counts=r.counts,
+                           source=r.source, source_time_utc=r.source_time,
+                           source_time_local=r.source_time_local, counts=r.counts,
                            error=r.error) for r in state.records],
         sources=gathered["sources"],
         evidence=gathered["evidence"],

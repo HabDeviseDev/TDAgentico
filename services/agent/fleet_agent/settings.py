@@ -62,6 +62,10 @@ class Settings:
     # Igual que el umbral del portal (PORTAL_STALE_AFTER_SECONDS).
     stale_after_s: float = _f("STALE_AFTER_SECONDS", "120")
 
+    # Zona horaria IANA en la que se presentan las fechas al usuario (texto de
+    # la respuesta, fuentes y evidencias). Los datos siguen en UTC.
+    display_timezone: str = os.getenv("AGENT_DISPLAY_TIMEZONE", "America/Bogota").strip()
+
     def configuration_problem(self) -> str | None:
         """Motivo por el que el agente no puede usar el modelo, o None."""
         if self.provider != "anthropic":

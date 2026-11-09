@@ -62,7 +62,9 @@ def test_selecciona_y_ejecuta_la_herramienta_real():
     assert tool["name"] == ALERTS and tool["status"] == "ok"
     assert tool["source"] == "GET /v1/alerts" and tool["source_time_utc"] == EVALUATED_AT
     assert body["sources"] == [{"tool": ALERTS, "source": "GET /v1/alerts",
-                                "time_utc": EVALUATED_AT, "status": "ok"}]
+                                "time_utc": EVALUATED_AT,
+                                "time_local": "06/11/2026 15:00:00 America/Bogota",
+                                "status": "ok"}]
     assert body["vehicle_ids"] == ["BOG-007"] and body["zone_ids"] == ["DEMO-Z01"]
     [alert] = body["evidence"]["alerts"]
     assert alert["observed_duration_min"] == 25.0 and alert["started_at_utc"].endswith("Z")
