@@ -1,0 +1,14 @@
+# 00-entorno
+# inicio: 2026-11-09T21:04:58Z
+# comando: date -u; echo "commit: $(git rev-parse HEAD)"; git status --short;
+  docker version --format "Docker cliente {{.Client.Version}} / servidor {{.Server.Version}}";
+  docker compose version; docker info --format "CPU: {{.NCPU}}  Memoria: {{.MemTotal}} bytes"
+
+Mon Nov  9 21:04:58 UTC 2026
+commit: 6235fd93e4106e7587048558ca43d120bffe8c89
+?? docs/verificacion/2026-11-09/
+Docker cliente 29.9.2 / servidor 29.9.2
+Docker Compose version v5.6.1
+CPU: 4  Memoria: 4056506368 bytes
+
+# fin: 2026-11-09T21:10:20Z  código: 0  duración: 323 s

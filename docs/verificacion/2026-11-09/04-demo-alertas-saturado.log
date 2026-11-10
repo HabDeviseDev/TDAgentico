@@ -1,0 +1,22 @@
+# 04-demo-alertas
+# inicio: 2026-11-09T22:35:46Z
+# comando: docker compose --profile demo run --rm -T demo-alerts --once
+
+ Container fleet-api-1 Running 
+ Container fleet-kafka-1 Running 
+ Container fleet-timescaledb-1 Running 
+ Container fleet-timescaledb-1 Waiting 
+ Container fleet-kafka-1 Waiting 
+ Container fleet-timescaledb-1 Healthy 
+ Container fleet-migrate-1 Starting 
+ Container fleet-kafka-1 Healthy 
+ Container fleet-kafka-init-1 Starting 
+ Container fleet-migrate-1 Started 
+ Container fleet-kafka-init-1 Started 
+ Container fleet-kafka-init-1 Waiting 
+ Container fleet-migrate-1 Waiting 
+ Container fleet-migrate-1 Exited 
+ Container fleet-kafka-init-1 Error service "kafka-init" didn't complete successfully: exit 1
+service "kafka-init" didn't complete successfully: exit 1
+
+# fin: 2026-11-09T22:42:50Z  código: 1  duración: 424 s

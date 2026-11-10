@@ -1,1 +1,5 @@
 loadtest/runs
+# Dependencias locales de la app (p. ej. tras probar con Expo Go en el host):
+# ninguna imagen las usa y copiarlas a la de pruebas tardaba decenas de minutos.
+**/node_modules
+services/mobile/.expo

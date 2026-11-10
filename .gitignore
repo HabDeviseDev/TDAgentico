@@ -6,3 +6,6 @@ venv/
 .env
 node_modules/
 dist/
+
+# Guion del video: material personal, se conserva solo en el equipo.
+/docs/guion-video.md

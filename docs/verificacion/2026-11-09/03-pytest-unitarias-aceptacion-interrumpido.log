@@ -1,0 +1,612 @@
+# 03-pytest-unitarias-aceptacion
+# inicio: 2026-11-09T21:14:03Z
+# comando: docker compose --profile test run --rm --build -T tests -v -rfEs -p no:cacheprovider
+
+ Image fleet-api Building 
+ Image fleet-consumer Building 
+ Image fleet-agent Building 
+ Image fleet-portal Building 
+#1 [internal] load local bake definitions
+#1 reading from stdin 1.85kB 0.4s done
+#1 DONE 0.4s
+
+#2 [agent internal] load build definition from Dockerfile
+#2 transferring dockerfile:
+#2 transferring dockerfile: 583B 0.0s done
+#2 ...
+
+#3 [consumer internal] load build definition from Dockerfile
+#3 transferring dockerfile: 419B 0.0s done
+#3 DONE 1.6s
+
+#4 [portal internal] load build definition from Dockerfile
+#4 transferring dockerfile: 687B 0.0s done
+#4 DONE 2.0s
+
+#5 [api internal] load build definition from Dockerfile
+#5 transferring dockerfile: 444B 0.1s done
+#5 ...
+
+#2 [agent internal] load build definition from Dockerfile
+#2 DONE 2.6s
+
+#6 [portal internal] load metadata for docker.io/library/nginx:1.27-alpine
+#6 ...
+
+#5 [api internal] load build definition from Dockerfile
+#5 DONE 3.2s
+
+#7 [portal internal] load metadata for docker.io/library/node:20.18-alpine
+#7 ...
+
+#8 [api internal] load metadata for docker.io/library/python:3.12-slim
+#8 DONE 3.3s
+
+#9 [api internal] load .dockerignore
+#9 transferring context:
+#9 transferring context: 54B 0.0s done
+#9 DONE 1.2s
+
+#7 [portal internal] load metadata for docker.io/library/node:20.18-alpine
+#7 DONE 3.8s
+
+#6 [portal internal] load metadata for docker.io/library/nginx:1.27-alpine
+#6 DONE 4.8s
+
+#10 [agent 1/6] FROM docker.io/library/python:3.12-slim@sha256:4840d514c583a4d3d8cad3940e68dee6f0f6f3635c12fcd0a3d74c21a5b93a54
+#10 resolve docker.io/library/python:3.12-slim@sha256:4840d514c583a4d3d8cad3940e68dee6f0f6f3635c12fcd0a3d74c21a5b93a54
+#10 resolve docker.io/library/python:3.12-slim@sha256:4840d514c583a4d3d8cad3940e68dee6f0f6f3635c12fcd0a3d74c21a5b93a54 3.3s done
+#10 resolve docker.io/library/python:3.12-slim@sha256:4840d514c583a4d3d8cad3940e68dee6f0f6f3635c12fcd0a3d74c21a5b93a54 3.3s done
+#10 DONE 3.6s
+
+#11 [api internal] load build context
+#11 transferring context: 73.49kB 1.3s done
+#11 ...
+
+#12 [consumer internal] load build context
+#12 transferring context: 12.78kB 1.0s done
+#12 DONE 3.7s
+
+#13 [portal internal] load .dockerignore
+#13 transferring context: 58B 0.0s done
+#13 DONE 3.5s
+
+#14 [agent internal] load build context
+#14 transferring context: 1.04kB 0.0s done
+#14 ...
+
+#11 [api internal] load build context
+#11 DONE 4.7s
+
+#14 [agent internal] load build context
+#14 DONE 5.1s
+
+#15 [portal internal] load build context
+#15 DONE 0.0s
+
+#16 [portal stage-2 1/3] FROM docker.io/library/nginx:1.27-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10
+#16 resolve docker.io/library/nginx:1.27-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10
+#16 ...
+
+#17 [agent 3/6] COPY services/agent/requirements.txt .
+#17 CACHED
+
+#18 [agent 5/6] COPY contracts/fleet_contracts ./fleet_contracts
+#18 CACHED
+
+#19 [agent 4/6] RUN pip install --no-cache-dir -r requirements.txt
+#19 CACHED
+
+#20 [agent 6/6] COPY services/agent/fleet_agent ./fleet_agent
+#20 CACHED
+
+#21 [consumer 3/6] COPY services/consumer/requirements.txt .
+#21 CACHED
+
+#22 [consumer 4/6] RUN pip install --no-cache-dir -r requirements.txt
+#22 CACHED
+
+#23 [agent 2/6] WORKDIR /app
+#23 CACHED
+
+#24 [consumer 5/6] COPY contracts/fleet_contracts ./fleet_contracts
+#24 CACHED
+
+#25 [consumer 6/6] COPY services/consumer/consumer ./consumer
+#25 CACHED
+
+#26 [portal build 1/6] FROM docker.io/library/node:20.18-alpine@sha256:053c1d99e608fe9fa0db6821edd84276277c0a663cd181f4a3e59ee20f5f07ea
+#26 resolve docker.io/library/node:20.18-alpine@sha256:053c1d99e608fe9fa0db6821edd84276277c0a663cd181f4a3e59ee20f5f07ea
+#26 ...
+
+#27 [api 4/6] RUN pip install --no-cache-dir -r requirements.txt
+#27 CACHED
+
+#23 [api 2/6] WORKDIR /app
+#23 CACHED
+
+#28 [api 3/6] COPY services/api/requirements.txt .
+#28 CACHED
+
+#29 [api 5/6] COPY contracts/fleet_contracts ./fleet_contracts
+#29 CACHED
+
+#30 [api 6/6] COPY services/api/app ./app
+#30 CACHED
+
+#31 [api] exporting to image
+#31 exporting layers
+#31 exporting layers 0.0s done
+#31 exporting manifest sha256:ffa17c89abcb7b1ae3a9aec9ac9d43748d86d5a8178c0162d0f0d4fd8d5876ce
+#31 exporting manifest sha256:ffa17c89abcb7b1ae3a9aec9ac9d43748d86d5a8178c0162d0f0d4fd8d5876ce 1.5s done
+#31 exporting config sha256:7371788fbed0c80cb31d6ce9916b723f306bf6777c845a882f97acf7d5fdf4da
+#31 exporting config sha256:7371788fbed0c80cb31d6ce9916b723f306bf6777c845a882f97acf7d5fdf4da 1.6s done
+#31 ...
+
+#32 [agent] exporting to image
+#32 exporting layers 0.0s done
+#32 exporting manifest sha256:18185d6cefeffe5806463015f784bd34a0dd5f81b485a999876d919e59430ad6 1.1s done
+#32 exporting config sha256:7e3aa82144a5ba6b275b0557aec403cc9fe68fbb93ac2051f9a1ea02640822c9 1.7s done
+#32 exporting attestation manifest sha256:d3d47bebee3a2c79dbde293c8cb10548a9bdbd9999a98525183242599d2ceb0a
+#32 ...
+
+#16 [portal stage-2 1/3] FROM docker.io/library/nginx:1.27-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10
+#16 resolve docker.io/library/nginx:1.27-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10 9.2s done
+#16 DONE 9.5s
+
+#15 [portal internal] load build context
+#15 transferring context:
+#15 transferring context: 1.72kB 0.0s done
+#15 DONE 0.8s
+
+#31 [api] exporting to image
+#31 exporting attestation manifest sha256:5c54a1d10ba6ff70269fa3ae53be6258556bbfe9e1c6adeffe65ee5feb633b56
+#31 ...
+
+#33 [consumer] exporting to image
+#33 exporting layers 0.0s done
+#33 exporting manifest sha256:ca391a8cabc0a329d6855d10a9583f2fbe71298ed58fc55f779e0f877fd9c2c2 0.4s done
+#33 exporting config sha256:ab68ce7c046f88384760c79884ba7f4967a9168019cffc16640f185d9b3dfbf1 1.6s done
+#33 exporting attestation manifest sha256:11cf070e36547b176d646e5ff2acfdabfe4dbec381f2cea6eef9ddaf90fbbc30
+#33 ...
+
+#26 [portal build 1/6] FROM docker.io/library/node:20.18-alpine@sha256:053c1d99e608fe9fa0db6821edd84276277c0a663cd181f4a3e59ee20f5f07ea
+#26 resolve docker.io/library/node:20.18-alpine@sha256:053c1d99e608fe9fa0db6821edd84276277c0a663cd181f4a3e59ee20f5f07ea 10.7s done
+#26 DONE 10.9s
+
+#32 [agent] exporting to image
+#32 ...
+
+#33 [consumer] exporting to image
+#33 exporting attestation manifest sha256:11cf070e36547b176d646e5ff2acfdabfe4dbec381f2cea6eef9ddaf90fbbc30 5.1s done
+#33 exporting manifest list sha256:bf00207aa8bc6bb9966a6a8ff3cb16e41aac472f8ab4954ee2228e89c07c4175
+#33 ...
+
+#34 [portal build 2/6] WORKDIR /app
+#34 CACHED
+
+#35 [portal build 4/6] RUN npm ci --no-audit --no-fund
+#35 CACHED
+
+#36 [portal build 6/6] RUN npm run build
+#36 CACHED
+
+#37 [portal stage-2 2/3] COPY nginx/default.conf.template /etc/nginx/templates/default.conf.template
+#37 CACHED
+
+#38 [portal build 3/6] COPY package.json package-lock.json ./
+#38 CACHED
+
+#39 [portal build 5/6] COPY . .
+#39 CACHED
+
+#40 [portal stage-2 3/3] COPY --from=build /app/dist /usr/share/nginx/html
+#40 CACHED
+
+#32 [agent] exporting to image
+#32 exporting attestation manifest sha256:d3d47bebee3a2c79dbde293c8cb10548a9bdbd9999a98525183242599d2ceb0a 5.5s done
+#32 exporting manifest list sha256:c959c8c2ac575c16eab0122cc1355197b601ed9afd42ec88c997ba069ec9d241
+#32 exporting manifest list sha256:c959c8c2ac575c16eab0122cc1355197b601ed9afd42ec88c997ba069ec9d241 2.4s done
+#32 naming to docker.io/library/fleet-agent:latest
+#32 naming to docker.io/library/fleet-agent:latest 1.9s done
+#32 unpacking to docker.io/library/fleet-agent:latest
+#32 ...
+
+#33 [consumer] exporting to image
+#33 exporting manifest list sha256:bf00207aa8bc6bb9966a6a8ff3cb16e41aac472f8ab4954ee2228e89c07c4175 2.4s done
+#33 naming to docker.io/library/fleet-consumer:latest 0.8s done
+#33 unpacking to docker.io/library/fleet-consumer:latest 3.2s done
+#33 DONE 18.8s
+
+#41 [portal] exporting to image
+#41 exporting layers done
+#41 exporting manifest sha256:988dbd046f6538a6b144fb34149baff5563c6749654337c2a512686968266bd3 1.0s done
+#41 exporting config sha256:fd633d6e1b30a480ca3f2a017431a0e58f23623470c1011867e1d5210e1136b1 0.9s done
+#41 exporting attestation manifest sha256:ac86656c8f3786866931e3013a401a574f40a60fc8f8c634a31b28834c34879b
+#41 ...
+
+#32 [agent] exporting to image
+#32 unpacking to docker.io/library/fleet-agent:latest 1.5s done
+#32 DONE 21.4s
+
+#31 [api] exporting to image
+#31 exporting attestation manifest sha256:5c54a1d10ba6ff70269fa3ae53be6258556bbfe9e1c6adeffe65ee5feb633b56 4.3s done
+#31 exporting manifest list sha256:a24041a31ed2f83708e8802c2c3af50d07a1ca761ed316343cab4b4504525737 2.7s done
+#31 naming to docker.io/library/fleet-api:latest 1.4s done
+#31 unpacking to docker.io/library/fleet-api:latest 1.9s done
+#31 DONE 21.5s
+
+#41 [portal] exporting to image
+#41 exporting attestation manifest sha256:ac86656c8f3786866931e3013a401a574f40a60fc8f8c634a31b28834c34879b 6.5s done
+#41 exporting manifest list sha256:3d2c0fb44ea43b202fcb09489819344b51895f6e1c263e74ae5489f2f6bf04f1
+#41 exporting manifest list sha256:3d2c0fb44ea43b202fcb09489819344b51895f6e1c263e74ae5489f2f6bf04f1 8.8s done
+#41 naming to docker.io/library/fleet-portal:latest
+#41 naming to docker.io/library/fleet-portal:latest 0.6s done
+#41 unpacking to docker.io/library/fleet-portal:latest
+#41 unpacking to docker.io/library/fleet-portal:latest 0.6s done
+#41 DONE 22.3s
+
+#42 [consumer] resolving provenance for metadata file
+#42 ...
+
+#43 [api] resolving provenance for metadata file
+#43 ...
+
+#42 [consumer] resolving provenance for metadata file
+#42 DONE 9.9s
+
+#44 [agent] resolving provenance for metadata file
+#44 ...
+
+#45 [portal] resolving provenance for metadata file
+#45 ...
+
+#44 [agent] resolving provenance for metadata file
+#44 DONE 15.1s
+
+#45 [portal] resolving provenance for metadata file
+#45 ...
+
+#43 [api] resolving provenance for metadata file
+#43 DONE 12.2s
+
+#45 [portal] resolving provenance for metadata file
+#45 DONE 7.1s
+ Image fleet-portal Built 
+ Image fleet-agent Built 
+ Image fleet-api Built 
+ Image fleet-consumer Built 
+ Container fleet-consumer-1 Running 
+ Container fleet-timescaledb-1 Running 
+ Container fleet-api-1 Running 
+ Container fleet-kafka-1 Running 
+ Container fleet-portal-1 Running 
+ Container fleet-agent-1 Running 
+ Container fleet-kafka-1 Waiting 
+ Container fleet-timescaledb-1 Waiting 
+ Container fleet-kafka-1 Healthy 
+ Container fleet-kafka-init-1 Starting 
+ Container fleet-timescaledb-1 Healthy 
+ Container fleet-migrate-1 Starting 
+ Container fleet-kafka-init-1 Started 
+ Container fleet-migrate-1 Started 
+ Container fleet-kafka-init-1 Waiting 
+ Container fleet-migrate-1 Waiting 
+ Container fleet-kafka-init-1 Waiting 
+ Container fleet-migrate-1 Waiting 
+ Container fleet-migrate-1 Exited 
+ Container fleet-migrate-1 Exited 
+ Container fleet-kafka-init-1 Exited 
+ Container fleet-api-1 Waiting 
+ Container fleet-kafka-init-1 Exited 
+ Container fleet-api-1 Healthy 
+ Image fleet-tests Building 
+#1 [internal] load local bake definitions
+#1 reading from stdin 2.20kB 0.4s done
+#1 DONE 0.4s
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile:
+#2 transferring dockerfile: 900B 0.1s done
+#2 DONE 0.8s
+
+#3 [internal] load metadata for docker.io/library/python:3.12-slim
+#3 DONE 1.6s
+
+#4 [internal] load .dockerignore
+#4 transferring context:
+#4 transferring context: 54B 0.0s done
+#4 DONE 0.8s
+
+#5 [internal] load build context
+#5 ...
+
+#6 [ 1/13] FROM docker.io/library/python:3.12-slim@sha256:4840d514c583a4d3d8cad3940e68dee6f0f6f3635c12fcd0a3d74c21a5b93a54
+#6 resolve docker.io/library/python:3.12-slim@sha256:4840d514c583a4d3d8cad3940e68dee6f0f6f3635c12fcd0a3d74c21a5b93a54 3.0s done
+#6 DONE 3.3s
+
+#5 [internal] load build context
+#5 transferring context: 1.32MB 4.0s
+#5 transferring context: 2.48MB 9.0s
+#5 transferring context: 3.53MB 14.1s
+#5 transferring context: 5.06MB 19.2s
+#5 transferring context: 5.52MB 24.2s
+#5 transferring context: 6.03MB 29.3s
+#5 transferring context: 8.15MB 34.4s
+#5 transferring context: 8.46MB 39.4s
+#5 transferring context: 9.32MB 44.5s
+#5 transferring context: 10.70MB 49.5s
+#5 transferring context: 12.59MB 54.6s
+#5 transferring context: 13.37MB 59.7s
+#5 transferring context: 13.77MB 64.9s
+#5 transferring context: 14.11MB 70.0s
+#5 transferring context: 14.85MB 75.2s
+#5 transferring context: 15.22MB 80.5s
+#5 transferring context: 15.42MB 85.5s
+#5 transferring context: 16.10MB 90.7s
+#5 transferring context: 22.71MB 95.9s
+#5 transferring context: 28.71MB 100.9s
+#5 transferring context: 29.82MB 106.2s
+#5 transferring context: 33.04MB 111.3s
+#5 transferring context: 34.18MB 116.4s
+#5 transferring context: 34.98MB 121.8s
+#5 transferring context: 39.21MB 126.8s
+#5 transferring context: 43.31MB 131.9s
+#5 transferring context: 44.55MB 137.1s
+#5 transferring context: 45.58MB 142.1s
+#5 transferring context: 48.50MB 147.3s
+#5 transferring context: 49.20MB 152.4s
+#5 transferring context: 52.30MB 157.4s
+#5 transferring context: 53.69MB 162.5s
+#5 transferring context: 54.24MB 167.6s
+#5 transferring context: 56.05MB 172.7s
+#5 transferring context: 58.73MB 177.7s
+#5 transferring context: 59.22MB 182.7s
+#5 transferring context: 60.00MB 188.0s
+#5 transferring context: 64.54MB 193.1s
+#5 transferring context: 65.85MB 198.3s
+#5 transferring context: 66.49MB 206.5s
+#5 transferring context: 67.17MB 211.8s
+#5 transferring context: 67.60MB 216.9s
+#5 transferring context: 68.33MB 222.0s
+#5 transferring context: 71.64MB 227.0s
+#5 transferring context: 73.13MB 232.0s
+#5 transferring context: 74.16MB 237.1s
+#5 transferring context: 75.51MB 242.2s
+#5 transferring context: 77.97MB 247.4s
+#5 transferring context: 79.19MB 252.5s
+#5 transferring context: 80.74MB 257.7s
+#5 transferring context: 82.44MB 262.8s
+#5 transferring context: 83.23MB 267.9s
+#5 transferring context: 86.14MB 272.9s
+#5 transferring context: 89.23MB 278.0s
+#5 transferring context: 90.08MB 283.4s
+#5 transferring context: 92.60MB 288.6s
+#5 transferring context: 95.69MB 293.9s
+#5 transferring context: 96.25MB 299.2s
+#5 transferring context: 97.02MB 304.3s
+#5 transferring context: 98.96MB 309.4s
+#5 transferring context: 100.60MB 314.6s
+#5 transferring context: 101.25MB 319.9s
+#5 transferring context: 101.57MB 325.0s
+#5 transferring context: 101.87MB 330.3s
+#5 transferring context: 102.82MB 335.4s
+#5 transferring context: 104.38MB 340.4s
+#5 transferring context: 105.92MB 345.5s
+#5 transferring context: 107.03MB 350.9s
+#5 transferring context: 107.21MB 356.2s
+#5 transferring context: 107.35MB 361.3s
+#5 transferring context: 107.74MB 366.4s
+#5 transferring context: 107.89MB 371.5s
+#5 transferring context: 108.52MB 376.6s
+#5 transferring context: 109.03MB 381.6s
+#5 transferring context: 109.35MB 386.7s
+#5 transferring context: 110.00MB 391.7s
+#5 transferring context: 111.17MB 396.7s
+#5 transferring context: 111.48MB 401.8s
+#5 transferring context: 111.54MB 408.1s
+#5 transferring context: 112.16MB 413.2s
+#5 transferring context: 112.59MB 418.4s
+#5 transferring context: 113.46MB 423.7s
+#5 transferring context: 114.37MB 428.8s
+#5 transferring context: 114.99MB 433.9s
+#5 transferring context: 115.34MB 439.4s
+#5 transferring context: 116.81MB 444.5s
+#5 transferring context: 118.28MB 449.6s
+#5 transferring context: 119.67MB 454.7s
+#5 transferring context: 122.97MB 459.7s
+#5 transferring context: 125.18MB 464.8s
+#5 transferring context: 127.37MB 469.8s
+#5 transferring context: 129.15MB 474.9s
+#5 transferring context: 130.49MB 480.2s
+#5 transferring context: 131.51MB 485.2s
+#5 transferring context: 132.53MB 490.3s
+#5 transferring context: 134.60MB 495.4s
+#5 transferring context: 136.09MB 500.7s
+#5 transferring context: 136.30MB 505.8s
+#5 transferring context: 138.01MB 511.1s
+#5 transferring context: 140.94MB 516.2s
+#5 transferring context: 142.43MB 521.3s
+#5 transferring context: 145.22MB 526.4s
+#5 transferring context: 149.47MB 531.5s
+#5 transferring context: 151.34MB 536.5s
+#5 transferring context: 152.56MB 541.9s
+#5 transferring context: 157.31MB 548.5s
+#5 transferring context: 157.66MB 553.5s
+#5 transferring context: 160.58MB 558.6s
+#5 transferring context: 164.65MB 563.7s
+#5 transferring context: 164.85MB 570.3s
+#5 transferring context: 166.45MB 575.4s
+#5 transferring context: 167.87MB 580.4s
+#5 transferring context: 169.22MB 585.5s
+#5 transferring context: 169.93MB 592.5s
+#5 transferring context: 173.57MB 597.8s
+#5 transferring context: 173.88MB 605.4s
+#5 transferring context: 175.17MB 612.1s
+#5 transferring context: 178.99MB 617.2s
+#5 transferring context: 185.46MB 622.3s
+#5 transferring context: 190.07MB 627.5s
+#5 transferring context: 193.60MB 633.1s
+#5 transferring context: 196.38MB 638.1s
+#5 transferring context: 199.38MB 644.3s
+#5 transferring context: 199.90MB 649.6s
+#5 transferring context: 203.16MB 654.8s
+#5 transferring context: 207.05MB 659.8s
+#5 transferring context: 207.79MB 665.8s
+#5 transferring context: 208.92MB 670.9s
+#5 transferring context: 209.72MB 675.9s
+#5 transferring context: 210.19MB 681.0s
+#5 transferring context: 211.29MB 686.7s
+#5 transferring context: 212.78MB 691.8s
+#5 transferring context: 217.64MB 696.8s
+#5 transferring context: 218.27MB 701.9s
+#5 transferring context: 219.79MB 707.0s
+#5 transferring context: 220.85MB 712.3s
+#5 transferring context: 222.13MB 719.0s
+#5 transferring context: 225.39MB 724.1s
+#5 transferring context: 226.82MB 729.2s
+#5 transferring context: 227.74MB 734.3s
+#5 transferring context: 228.80MB 739.6s
+#5 transferring context: 230.77MB 744.7s
+#5 transferring context: 234.05MB 750.0s
+#5 transferring context: 237.04MB 755.1s
+#5 transferring context: 246.33MB 760.1s
+#5 transferring context: 250.73MB 765.3s
+#5 transferring context: 251.22MB 770.3s
+#5 transferring context: 253.73MB 775.3s
+#5 transferring context: 256.22MB 780.3s
+#5 transferring context: 257.26MB 785.7s
+#5 transferring context: 259.49MB 790.9s
+#5 transferring context: 261.11MB 795.9s
+#5 transferring context: 262.77MB 800.9s
+#5 transferring context: 264.38MB 807.1s
+#5 transferring context: 266.71MB 812.1s
+#5 transferring context: 269.50MB 817.2s
+#5 transferring context: 270.18MB 822.3s
+#5 transferring context: 270.93MB 827.5s
+#5 transferring context: 271.90MB 832.7s
+#5 transferring context: 274.41MB 837.7s
+#5 transferring context: 275.42MB 842.8s
+#5 transferring context: 276.44MB 848.0s
+#5 transferring context: 279.31MB 853.1s
+#5 transferring context: 280.70MB 858.3s
+#5 transferring context: 282.05MB 863.3s
+#5 transferring context: 286.84MB 868.4s
+#5 transferring context: 289.07MB 873.4s
+#5 transferring context: 293.00MB 878.7s
+#5 transferring context: 295.54MB 884.2s
+#5 transferring context: 297.97MB 889.3s
+#5 transferring context: 299.74MB 894.9s
+#5 transferring context: 300.81MB 900.1s
+#5 transferring context: 301.70MB 905.4s
+#5 transferring context: 302.50MB 910.6s
+#5 transferring context: 304.19MB 915.7s
+#5 transferring context: 305.53MB 920.7s
+#5 transferring context: 307.37MB 925.9s
+#5 transferring context: 307.93MB 931.1s
+#5 transferring context: 310.33MB 936.3s
+#5 transferring context: 312.32MB 941.4s
+#5 transferring context: 313.94MB 946.7s
+#5 transferring context: 315.23MB 951.8s
+#5 transferring context: 317.61MB 956.8s
+#5 transferring context: 319.81MB 961.8s
+#5 transferring context: 321.32MB 967.2s
+#5 transferring context: 322.27MB 973.0s
+#5 transferring context: 326.57MB 978.2s
+#5 transferring context: 328.35MB 983.4s
+#5 transferring context: 331.74MB 988.4s
+#5 transferring context: 333.41MB 993.5s
+#5 transferring context: 335.69MB 998.5s
+#5 transferring context: 336.80MB 1003.6s
+#5 transferring context: 337.94MB 1008.8s
+#5 transferring context: 338.57MB 1014.1s
+#5 transferring context: 339.63MB 1019.1s
+#5 transferring context: 340.15MB 1024.2s
+#5 transferring context: 341.18MB 1029.3s
+#5 transferring context: 342.46MB 1034.5s
+#5 transferring context: 342.60MB 1040.1s
+#5 transferring context: 342.94MB 1045.2s
+#5 transferring context: 344.21MB 1050.4s
+#5 transferring context: 345.32MB 1055.5s
+#5 transferring context: 345.56MB 1060.7s
+#5 transferring context: 345.69MB 1065.9s
+#5 transferring context: 346.37MB 1071.0s
+#5 transferring context: 347.57MB 1076.1s
+#5 transferring context: 347.89MB 1081.1s
+#5 transferring context: 349.00MB 1086.2s
+#5 transferring context: 350.26MB 1091.4s
+#5 transferring context: 352.17MB 1096.6s
+#5 transferring context: 352.80MB 1101.7s
+#5 transferring context: 353.42MB 1106.7s
+#5 transferring context: 354.48MB 1111.8s
+#5 transferring context: 354.80MB 1117.1s
+#5 transferring context: 355.16MB 1130.4s
+#5 transferring context: 355.20MB 1135.6s
+#5 transferring context: 356.94MB 1140.6s
+#5 transferring context: 357.52MB 1146.0s
+#5 transferring context: 358.14MB 1151.1s
+#5 transferring context: 360.65MB 1156.2s
+#5 transferring context: 364.27MB 1161.2s
+#5 transferring context: 365.25MB 1166.7s
+#5 transferring context: 368.25MB 1171.8s
+#5 transferring context: 374.00MB 1176.9s
+#5 transferring context: 375.72MB 1182.2s
+#5 transferring context: 379.88MB 1187.4s
+#5 transferring context: 384.13MB 1192.6s
+#5 transferring context: 388.39MB 1197.7s
+#5 transferring context: 391.38MB 1202.7s
+#5 transferring context: 392.70MB 1207.8s
+#5 transferring context: 394.24MB 1212.8s
+#5 transferring context: 394.70MB 1213.7s done
+#5 DONE 1232.1s
+
+#7 [ 5/13] COPY services/agent/requirements.txt services/agent/requirements.txt
+#7 CACHED
+
+#8 [ 7/13] RUN pip install --no-cache-dir     -r services/api/requirements.txt     -r services/consumer/requirements.txt     -r services/agent/requirements.txt     -r tests/acceptance/requirements.txt
+#8 CACHED
+
+#9 [ 8/13] COPY pytest.ini .
+#9 CACHED
+
+#10 [ 2/13] WORKDIR /repo
+#10 CACHED
+
+#11 [ 4/13] COPY services/consumer/requirements.txt services/consumer/requirements.txt
+#11 CACHED
+
+#12 [ 6/13] COPY tests/acceptance/requirements.txt tests/acceptance/requirements.txt
+#12 CACHED
+
+#13 [ 3/13] COPY services/api/requirements.txt services/api/requirements.txt
+#13 CACHED
+
+#14 [ 9/13] COPY contracts ./contracts
+#14 CACHED
+
+#15 [10/13] COPY services ./services
+#15 DONE 1913.4s
+
+#16 [11/13] COPY scripts ./scripts
+#16 DONE 56.0s
+
+#17 [12/13] COPY loadtest ./loadtest
+#17 DONE 32.2s
+
+#18 [13/13] COPY tests ./tests
+#18 DONE 32.5s
+
+#19 exporting to image
+#19 exporting layers
+#19 exporting layers 1442.5s done
+#19 exporting manifest sha256:ca252783569c7b8a55870eeb49da53c3c057f58e9f35f406abc108c1fd06a30f
+#19 exporting manifest sha256:ca252783569c7b8a55870eeb49da53c3c057f58e9f35f406abc108c1fd06a30f 1.1s done
+#19 exporting config sha256:f9d50f4dfa943cd1970bec6bc5d8a7348386044e546fceefb04a8d89ca1f6e80
+#19 exporting config sha256:f9d50f4dfa943cd1970bec6bc5d8a7348386044e546fceefb04a8d89ca1f6e80 1.9s done
+#19 exporting attestation manifest sha256:24650a260784b439be40b7dc475aa49c49c94615ee4adeb921b209067669dbb4
+#19 exporting attestation manifest sha256:24650a260784b439be40b7dc475aa49c49c94615ee4adeb921b209067669dbb4 2.3s done
+#19 exporting manifest list sha256:3ee81a7215e0055607d5d3f5b31f154f4c20dd9fbb3521f895ab9cf18e4277b9
+#19 exporting manifest list sha256:3ee81a7215e0055607d5d3f5b31f154f4c20dd9fbb3521f895ab9cf18e4277b9 1.7s done
+#19 naming to docker.io/library/fleet-tests:latest
+#19 naming to docker.io/library/fleet-tests:latest 0.3s done
+#19 unpacking to docker.io/library/fleet-tests:latest

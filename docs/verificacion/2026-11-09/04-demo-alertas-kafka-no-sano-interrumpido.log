@@ -1,0 +1,18 @@
+# 04-demo-alertas
+# inicio: 2026-11-09T23:16:28Z
+# comando: docker compose --profile demo run --rm -T demo-alerts --once
+
+ Container fleet-timescaledb-1 Running 
+ Container fleet-kafka-1 Running 
+ Container fleet-api-1 Running 
+ Container fleet-kafka-1 Waiting 
+ Container fleet-timescaledb-1 Waiting 
+ Container fleet-kafka-1 Healthy 
+ Container fleet-kafka-init-1 Starting 
+ Container fleet-timescaledb-1 Healthy 
+ Container fleet-migrate-1 Starting 
+ Container fleet-kafka-init-1 Started 
+ Container fleet-migrate-1 Started 
+ Container fleet-migrate-1 Waiting 
+ Container fleet-kafka-init-1 Waiting 
+ Container fleet-migrate-1 Exited 

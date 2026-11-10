@@ -1,0 +1,387 @@
+# 01-stack-build-up
+# inicio: 2026-11-09T23:17:59Z
+# comando: docker compose up -d --build --wait
+
+ Image fleet-agent Building 
+ Image fleet-api Building 
+ Image fleet-consumer Building 
+ Image fleet-portal Building 
+#1 [internal] load local bake definitions
+#1 reading from stdin 1.85kB 0.2s done
+#1 DONE 0.2s
+
+#2 [consumer internal] load build definition from Dockerfile
+#2 transferring dockerfile:
+#2 transferring dockerfile: 419B 0.0s done
+#2 ...
+
+#3 [agent internal] load build definition from Dockerfile
+#3 transferring dockerfile: 583B 0.0s done
+#3 DONE 3.9s
+
+#4 [portal internal] load build definition from Dockerfile
+#4 transferring dockerfile: 687B 0.0s done
+#4 ...
+
+#2 [consumer internal] load build definition from Dockerfile
+#2 DONE 5.2s
+
+#5 [agent internal] load metadata for docker.io/library/python:3.12-slim
+#5 ...
+
+#6 [api internal] load build definition from Dockerfile
+#6 transferring dockerfile: 444B 0.0s done
+#6 DONE 6.8s
+
+#4 [portal internal] load build definition from Dockerfile
+#4 DONE 8.3s
+
+#5 [consumer internal] load metadata for docker.io/library/python:3.12-slim
+#5 DONE 3.9s
+
+#7 [agent internal] load .dockerignore
+#7 DONE 0.0s
+
+#7 [consumer internal] load .dockerignore
+#7 transferring context:
+#7 transferring context: 253B 0.1s done
+#7 DONE 3.5s
+
+#8 [portal internal] load metadata for docker.io/library/nginx:1.27-alpine
+#8 ...
+
+#9 [agent internal] load build context
+#9 transferring context: 1.04kB 0.0s done
+#9 ...
+
+#10 [auth] library/nginx:pull token for registry-1.docker.io
+#10 DONE 0.0s
+
+#11 [consumer internal] load build context
+#11 transferring context: 585B 0.0s done
+#11 ...
+
+#9 [agent internal] load build context
+#9 DONE 4.0s
+
+#12 [consumer 1/6] FROM docker.io/library/python:3.12-slim@sha256:4840d514c583a4d3d8cad3940e68dee6f0f6f3635c12fcd0a3d74c21a5b93a54
+#12 resolve docker.io/library/python:3.12-slim@sha256:4840d514c583a4d3d8cad3940e68dee6f0f6f3635c12fcd0a3d74c21a5b93a54
+#12 ...
+
+#11 [consumer internal] load build context
+#11 DONE 5.4s
+
+#13 [portal internal] load metadata for docker.io/library/node:20.18-alpine
+#13 ...
+
+#5 [api internal] load metadata for docker.io/library/python:3.12-slim
+#5 DONE 15.9s
+
+#13 [portal internal] load metadata for docker.io/library/node:20.18-alpine
+#13 ...
+
+#7 [api internal] load .dockerignore
+#7 transferring context: 253B 0.1s done
+#7 DONE 3.5s
+
+#12 [consumer 1/6] FROM docker.io/library/python:3.12-slim@sha256:4840d514c583a4d3d8cad3940e68dee6f0f6f3635c12fcd0a3d74c21a5b93a54
+#12 ...
+
+#13 [portal internal] load metadata for docker.io/library/node:20.18-alpine
+#13 DONE 14.6s
+
+#14 [api internal] load build context
+#14 transferring context: 73.49kB 1.2s done
+#14 DONE 4.5s
+
+#12 [api 1/6] FROM docker.io/library/python:3.12-slim@sha256:4840d514c583a4d3d8cad3940e68dee6f0f6f3635c12fcd0a3d74c21a5b93a54
+#12 resolve docker.io/library/python:3.12-slim@sha256:4840d514c583a4d3d8cad3940e68dee6f0f6f3635c12fcd0a3d74c21a5b93a54 11.3s done
+#12 resolve docker.io/library/python:3.12-slim@sha256:4840d514c583a4d3d8cad3940e68dee6f0f6f3635c12fcd0a3d74c21a5b93a54 11.3s done
+#12 DONE 13.8s
+
+#15 [consumer 3/6] COPY services/consumer/requirements.txt .
+#15 CACHED
+
+#16 [consumer 4/6] RUN pip install --no-cache-dir -r requirements.txt
+#16 CACHED
+
+#17 [consumer 5/6] COPY contracts/fleet_contracts ./fleet_contracts
+#17 CACHED
+
+#18 [consumer 2/6] WORKDIR /app
+#18 CACHED
+
+#19 [consumer 6/6] COPY services/consumer/consumer ./consumer
+#19 CACHED
+
+#8 [portal internal] load metadata for docker.io/library/nginx:1.27-alpine
+#8 ...
+
+#20 [agent 4/6] RUN pip install --no-cache-dir -r requirements.txt
+#20 CACHED
+
+#21 [agent 5/6] COPY contracts/fleet_contracts ./fleet_contracts
+#21 CACHED
+
+#22 [agent 3/6] COPY services/agent/requirements.txt .
+#22 CACHED
+
+#18 [agent 2/6] WORKDIR /app
+#18 CACHED
+
+#23 [agent 6/6] COPY services/agent/fleet_agent ./fleet_agent
+#23 CACHED
+
+#8 [portal internal] load metadata for docker.io/library/nginx:1.27-alpine
+#8 ...
+
+#24 [agent] exporting to image
+#24 exporting layers
+#24 exporting layers 0.0s done
+#24 exporting manifest sha256:18185d6cefeffe5806463015f784bd34a0dd5f81b485a999876d919e59430ad6
+#24 ...
+
+#25 [api 3/6] COPY services/api/requirements.txt .
+#25 CACHED
+
+#26 [api 4/6] RUN pip install --no-cache-dir -r requirements.txt
+#26 CACHED
+
+#27 [api 5/6] COPY contracts/fleet_contracts ./fleet_contracts
+#27 CACHED
+
+#18 [api 2/6] WORKDIR /app
+#18 CACHED
+
+#28 [api 6/6] COPY services/api/app ./app
+#28 CACHED
+
+#29 [consumer] exporting to image
+#29 exporting layers 0.0s done
+#29 exporting manifest sha256:ca391a8cabc0a329d6855d10a9583f2fbe71298ed58fc55f779e0f877fd9c2c2
+#29 exporting manifest sha256:ca391a8cabc0a329d6855d10a9583f2fbe71298ed58fc55f779e0f877fd9c2c2 3.4s done
+#29 exporting config sha256:ab68ce7c046f88384760c79884ba7f4967a9168019cffc16640f185d9b3dfbf1
+#29 exporting config sha256:ab68ce7c046f88384760c79884ba7f4967a9168019cffc16640f185d9b3dfbf1 3.4s done
+#29 ...
+
+#30 [api] exporting to image
+#30 exporting layers 0.1s done
+#30 exporting manifest sha256:ffa17c89abcb7b1ae3a9aec9ac9d43748d86d5a8178c0162d0f0d4fd8d5876ce 3.3s done
+#30 exporting config sha256:7371788fbed0c80cb31d6ce9916b723f306bf6777c845a882f97acf7d5fdf4da
+#30 ...
+
+#24 [agent] exporting to image
+#24 exporting manifest sha256:18185d6cefeffe5806463015f784bd34a0dd5f81b485a999876d919e59430ad6 0.5s done
+#24 exporting config sha256:7e3aa82144a5ba6b275b0557aec403cc9fe68fbb93ac2051f9a1ea02640822c9 4.5s done
+#24 ...
+
+#30 [api] exporting to image
+#30 exporting config sha256:7371788fbed0c80cb31d6ce9916b723f306bf6777c845a882f97acf7d5fdf4da 5.1s done
+#30 ...
+
+#24 [agent] exporting to image
+#24 exporting attestation manifest sha256:ef4b885571081de5a6ef7823ab8fa7e918262fb7e30e96c2d2d2588c5728566b
+#24 ...
+
+#30 [api] exporting to image
+#30 exporting attestation manifest sha256:ce3fde6c21d5eebcf55ef417425acc4f63f66bed427b7cc8e7365c5a63d19950
+#30 ...
+
+#29 [consumer] exporting to image
+#29 exporting attestation manifest sha256:58eefb0432687f0654f64a6400b2b493825b9465a0f83d89794d7ec2a716ef80
+#29 ...
+
+#24 [agent] exporting to image
+#24 exporting attestation manifest sha256:ef4b885571081de5a6ef7823ab8fa7e918262fb7e30e96c2d2d2588c5728566b 14.0s done
+#24 exporting manifest list sha256:4b2f4f5105eb4a9a18c87ba7c30a82455065c9c916a0eb47a9c066dcf2e34dd4
+#24 ...
+
+#8 [portal internal] load metadata for docker.io/library/nginx:1.27-alpine
+#8 DONE 52.0s
+
+#31 [portal internal] load .dockerignore
+#31 transferring context:
+#31 transferring context: 58B 0.0s done
+#31 DONE 2.6s
+
+#30 [api] exporting to image
+#30 exporting attestation manifest sha256:ce3fde6c21d5eebcf55ef417425acc4f63f66bed427b7cc8e7365c5a63d19950 13.5s done
+#30 exporting manifest list sha256:cce212f48140a1aa3fcd2437e128851c51dd17056f75e9dedf9c698e1965ded3
+#30 ...
+
+#32 [portal internal] load build context
+#32 DONE 0.0s
+
+#33 [portal build 1/6] FROM docker.io/library/node:20.18-alpine@sha256:053c1d99e608fe9fa0db6821edd84276277c0a663cd181f4a3e59ee20f5f07ea
+#33 resolve docker.io/library/node:20.18-alpine@sha256:053c1d99e608fe9fa0db6821edd84276277c0a663cd181f4a3e59ee20f5f07ea
+#33 ...
+
+#29 [consumer] exporting to image
+#29 exporting attestation manifest sha256:58eefb0432687f0654f64a6400b2b493825b9465a0f83d89794d7ec2a716ef80 13.6s done
+#29 exporting manifest list sha256:7351ef2bf32ead281e785fda9ac66ebca4a8ddfa36baa070d370afa471fabd5e
+#29 ...
+
+#34 [portal stage-2 1/3] FROM docker.io/library/nginx:1.27-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10
+#34 resolve docker.io/library/nginx:1.27-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10
+#34 ...
+
+#24 [agent] exporting to image
+#24 exporting manifest list sha256:4b2f4f5105eb4a9a18c87ba7c30a82455065c9c916a0eb47a9c066dcf2e34dd4 12.1s done
+#24 naming to docker.io/library/fleet-agent:latest
+#24 naming to docker.io/library/fleet-agent:latest 5.6s done
+#24 unpacking to docker.io/library/fleet-agent:latest
+#24 ...
+
+#29 [consumer] exporting to image
+#29 exporting manifest list sha256:7351ef2bf32ead281e785fda9ac66ebca4a8ddfa36baa070d370afa471fabd5e 12.1s done
+#29 naming to docker.io/library/fleet-consumer:latest 5.7s done
+#29 unpacking to docker.io/library/fleet-consumer:latest
+#29 ...
+
+#30 [api] exporting to image
+#30 exporting manifest list sha256:cce212f48140a1aa3fcd2437e128851c51dd17056f75e9dedf9c698e1965ded3 13.6s done
+#30 naming to docker.io/library/fleet-api:latest 4.4s done
+#30 unpacking to docker.io/library/fleet-api:latest
+#30 ...
+
+#24 [agent] exporting to image
+#24 unpacking to docker.io/library/fleet-agent:latest 7.9s done
+#24 DONE 61.6s
+
+#30 [api] exporting to image
+#30 unpacking to docker.io/library/fleet-api:latest 7.3s done
+#30 ...
+
+#29 [consumer] exporting to image
+#29 unpacking to docker.io/library/fleet-consumer:latest 7.3s done
+#29 DONE 61.5s
+
+#30 [api] exporting to image
+#30 DONE 59.9s
+
+#33 [portal build 1/6] FROM docker.io/library/node:20.18-alpine@sha256:053c1d99e608fe9fa0db6821edd84276277c0a663cd181f4a3e59ee20f5f07ea
+#33 resolve docker.io/library/node:20.18-alpine@sha256:053c1d99e608fe9fa0db6821edd84276277c0a663cd181f4a3e59ee20f5f07ea 23.8s done
+#33 DONE 30.0s
+
+#34 [portal stage-2 1/3] FROM docker.io/library/nginx:1.27-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10
+#34 ...
+
+#32 [portal internal] load build context
+#32 transferring context:
+#32 transferring context: 1.72kB 0.0s done
+#32 ...
+
+#34 [portal stage-2 1/3] FROM docker.io/library/nginx:1.27-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10
+#34 resolve docker.io/library/nginx:1.27-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10 25.0s done
+#34 DONE 31.8s
+
+#32 [portal internal] load build context
+#32 DONE 2.7s
+
+#35 [portal build 2/6] WORKDIR /app
+#35 CACHED
+
+#36 [portal build 3/6] COPY package.json package-lock.json ./
+#36 CACHED
+
+#37 [portal build 4/6] RUN npm ci --no-audit --no-fund
+#37 CACHED
+
+#38 [portal build 5/6] COPY . .
+#38 CACHED
+
+#39 [portal build 6/6] RUN npm run build
+#39 CACHED
+
+#40 [portal stage-2 2/3] COPY nginx/default.conf.template /etc/nginx/templates/default.conf.template
+#40 CACHED
+
+#41 [portal stage-2 3/3] COPY --from=build /app/dist /usr/share/nginx/html
+#41 CACHED
+
+#42 [portal] exporting to image
+#42 exporting layers
+#42 exporting layers 0.0s done
+#42 exporting manifest sha256:988dbd046f6538a6b144fb34149baff5563c6749654337c2a512686968266bd3
+#42 exporting manifest sha256:988dbd046f6538a6b144fb34149baff5563c6749654337c2a512686968266bd3 3.1s done
+#42 exporting config sha256:fd633d6e1b30a480ca3f2a017431a0e58f23623470c1011867e1d5210e1136b1
+#42 exporting config sha256:fd633d6e1b30a480ca3f2a017431a0e58f23623470c1011867e1d5210e1136b1 1.1s done
+#42 exporting attestation manifest sha256:df3fcaa90c46b1f06a6234038f518d6826db7a2c117e3d6fa82e0c5a9d84a58b
+#42 exporting attestation manifest sha256:df3fcaa90c46b1f06a6234038f518d6826db7a2c117e3d6fa82e0c5a9d84a58b 5.3s done
+#42 exporting manifest list sha256:73759c008ef8680307c981de3ac41c85630a03352b0cc187c44f9dc8564efecc
+#42 exporting manifest list sha256:73759c008ef8680307c981de3ac41c85630a03352b0cc187c44f9dc8564efecc 4.7s done
+#42 naming to docker.io/library/fleet-portal:latest
+#42 naming to docker.io/library/fleet-portal:latest 1.4s done
+#42 unpacking to docker.io/library/fleet-portal:latest
+#42 unpacking to docker.io/library/fleet-portal:latest 3.0s done
+#42 DONE 26.4s
+
+#43 [agent] resolving provenance for metadata file
+#43 ...
+
+#44 [api] resolving provenance for metadata file
+#44 ...
+
+#45 [consumer] resolving provenance for metadata file
+#45 ...
+
+#46 [portal] resolving provenance for metadata file
+#46 ...
+
+#43 [agent] resolving provenance for metadata file
+#43 DONE 36.5s
+
+#44 [api] resolving provenance for metadata file
+#44 DONE 34.8s
+
+#45 [consumer] resolving provenance for metadata file
+#45 DONE 36.5s
+
+#46 [portal] resolving provenance for metadata file
+#46 DONE 21.8s
+ Image fleet-consumer Built 
+ Image fleet-api Built 
+ Image fleet-portal Built 
+ Image fleet-agent Built 
+ Container fleet-api-1 Running 
+ Container fleet-timescaledb-1 Running 
+ Container fleet-kafka-1 Running 
+ Container fleet-consumer-1 Running 
+ Container fleet-portal-1 Running 
+ Container fleet-agent-1 Running 
+ Container fleet-kafka-1 Waiting 
+ Container fleet-timescaledb-1 Waiting 
+ Container fleet-kafka-1 Healthy 
+ Container fleet-kafka-init-1 Starting 
+ Container fleet-timescaledb-1 Healthy 
+ Container fleet-migrate-1 Starting 
+ Container fleet-kafka-init-1 Started 
+ Container fleet-migrate-1 Started 
+ Container fleet-migrate-1 Waiting 
+ Container fleet-kafka-init-1 Waiting 
+ Container fleet-migrate-1 Waiting 
+ Container fleet-kafka-init-1 Waiting 
+ Container fleet-migrate-1 Exited 
+ Container fleet-migrate-1 Exited 
+ Container fleet-kafka-init-1 Exited 
+ Container fleet-api-1 Waiting 
+ Container fleet-kafka-init-1 Exited 
+ Container fleet-api-1 Healthy 
+ Container fleet-timescaledb-1 Waiting 
+ Container fleet-consumer-1 Waiting 
+ Container fleet-kafka-1 Waiting 
+ Container fleet-portal-1 Waiting 
+ Container fleet-kafka-init-1 Waiting 
+ Container fleet-api-1 Waiting 
+ Container fleet-agent-1 Waiting 
+ Container fleet-migrate-1 Waiting 
+ Container fleet-kafka-1 Healthy 
+ Container fleet-migrate-1 Exited 
+ Container fleet-kafka-init-1 Exited 
+ Container fleet-portal-1 Healthy 
+ Container fleet-consumer-1 Healthy 
+ Container fleet-api-1 Healthy 
+ Container fleet-timescaledb-1 Healthy 
+ Container fleet-agent-1 Healthy 
+
+# fin: 2026-11-09T23:23:38Z  código: 0  duración: 340 s

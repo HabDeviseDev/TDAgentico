@@ -18,10 +18,10 @@ Móvil: GPS ──► SQLite (cola local) ──POST /v1/positions/batch──�
 
 - [Matriz de cumplimiento](docs/entrega.md): cada requisito con su implementación, comando, evidencia y nivel de verificación.
 - [Demostración paso a paso](docs/demo.md).
-- [Guion del video](docs/guion-video.md).
+- **Video de la exposición:** _enlace pendiente: se agregará al publicar el video final._
 - [Entorno agéntico](docs/entorno-agentico.md).
 - [Auditoría de IA](docs/auditoria-ia.md).
-- [Verificación final](docs/verificacion/2026-11-08/).
+- [Validación final](docs/verificacion/2026-11-09/).
 
 ## Requisitos del equipo
 
@@ -120,7 +120,7 @@ La versión completa está en [docs/demo.md](docs/demo.md): persistencia y sincr
 | Carga y caos | Ver "Pruebas de carga y caos" |
 | Todo, guardando las salidas | `scripts/verificacion_final.sh` → `docs/verificacion/<fecha>/` |
 
-Los resultados del cierre (commit, comandos, fecha, fallos y pruebas omitidas) están en [docs/entrega.md](docs/entrega.md#verificación-final-2026-11-08). El detalle de cada prueba está en "Pruebas".
+Los resultados del cierre (commit, comandos, fecha, fallos y pruebas omitidas) están en [docs/entrega.md](docs/entrega.md#validación-del-2026-11-09). El detalle de cada prueba está en "Pruebas".
 
 ## Documentación
 
@@ -129,7 +129,6 @@ Los resultados del cierre (commit, comandos, fecha, fallos y pruebas omitidas) e
 | Este README, desde "Estructura" | Detalle técnico por componente: contratos, garantías, portal, alertas, agente, app móvil, simulador, pruebas, carga y caos, limitaciones por etapa |
 | [docs/entrega.md](docs/entrega.md) | Matriz de cumplimiento, pendientes y verificación final |
 | [docs/demo.md](docs/demo.md) | Demostración reproducible con resultados esperados |
-| [docs/guion-video.md](docs/guion-video.md) | Guion de la exposición, de unos 9 minutos |
 | [docs/entorno-agentico.md](docs/entorno-agentico.md) | Cómo se trabajó con Claude Code: contexto, etapas, revisión y pruebas |
 | [CLAUDE.md](CLAUDE.md) | Instrucciones del proyecto para Claude Code (agregado en el cierre) |
 | [docs/auditoria-ia.md](docs/auditoria-ia.md) | Registro completo de decisiones, errores y verificaciones de la IA |
@@ -188,7 +187,7 @@ Otros errores de la IA registrados:
 - **Etapa 5:** app del conductor (React Native + Expo + SQLite) que funciona sin conexión e ingesta por lotes.
 - **Etapa 6:** pruebas de carga reproducibles (k6), reconciliación final y caos controlado.
 - **Etapa 7:** infraestructura en AWS (Terraform + una instancia EC2 con Docker Compose), validada sin credenciales; los recursos aún no se crearon.
-- **Cierre:** matriz de cumplimiento, demostración, guion, `CLAUDE.md` y verificación final (rama `feat/cierre-entrega`).
+- **Cierre:** matriz de cumplimiento, demostración, `CLAUDE.md` y verificación final (rama `feat/cierre-entrega`).
 
 Más abajo, el detalle técnico de cada componente.
 
@@ -213,7 +212,7 @@ Más abajo, el detalle técnico de cada componente.
 | `infra/scripts/` | `validate.sh` (validación sin credenciales) y `check_compose_ports.py` |
 | `.github/workflows/infra.yml` | CI de la infraestructura, sin credenciales |
 | `docs/arquitectura-aws.md` | Arquitectura de AWS, puntos únicos de falla, evolución a HA, cuentas, RPO/RTO y costos |
-| `docs/entrega.md`, `docs/demo.md`, `docs/guion-video.md`, `docs/entorno-agentico.md` | Cierre: matriz de cumplimiento, demostración, guion del video y forma de trabajo con Claude Code |
+| `docs/entrega.md`, `docs/demo.md`, `docs/entorno-agentico.md` | Cierre: matriz de cumplimiento, demostración y forma de trabajo con Claude Code |
 | `docs/verificacion/<fecha>/` | Salidas completas de la verificación final (`scripts/verificacion_final.sh`) |
 | `CLAUDE.md` | Instrucciones del proyecto para Claude Code, agregadas en el cierre |
 | `services/agent/fleet_agent/` | Agente operativo: `tools.py` (herramientas tipadas), `agent.py` (bucle y límites), `fleet_client.py` (HTTP de solo lectura), `breaker.py` (circuit breaker), `model.py` (proveedor), `main.py` (`POST /v1/chat`) |
@@ -294,6 +293,12 @@ El portal usa el puerto 8088 por defecto porque en el equipo donde se desarroll�
 PORTAL_PORT=9090 docker compose up -d portal
 ```
 
+En PowerShell, la variable se fija en la sesión y se quita después. Este patrón vale para todos los comandos con `VARIABLE=valor` de este documento:
+
+```powershell
+$env:PORTAL_PORT = "9090"; docker compose up -d portal; Remove-Item Env:PORTAL_PORT
+```
+
 ### Endpoints nuevos
 
 **`GET /v1/vehicles`**: posición actual de cada vehículo, leída de `vehicle_current_position`. Responde `503` si la BD no responde.
@@ -342,6 +347,10 @@ Las variables con valor por defecto en `docker-compose.yml` se pueden cambiar al
 
 ```bash
 VEHICLES_POLL_INTERVAL_S=2 PORTAL_STALE_AFTER_SECONDS=60 docker compose up -d api portal
+```
+
+```powershell
+$env:VEHICLES_POLL_INTERVAL_S = "2"; $env:PORTAL_STALE_AFTER_SECONDS = "60"; docker compose up -d api portal; Remove-Item Env:VEHICLES_POLL_INTERVAL_S, Env:PORTAL_STALE_AFTER_SECONDS
 ```
 
 El umbral de antigüedad llega al navegador por `/config.json`, que nginx genera al arrancar con las variables de entorno.
@@ -573,6 +582,10 @@ Todas son del servicio `api` y se pueden cambiar al arrancar:
 
 ```bash
 ALERT_AFTER_S=300 docker compose up -d api
+```
+
+```powershell
+$env:ALERT_AFTER_S = "300"; docker compose up -d api; Remove-Item Env:ALERT_AFTER_S
 ```
 
 Para ver a mano la evaluación degradada, bloquea el historial en una sesión de `psql` (`BEGIN; LOCK TABLE position_history IN ACCESS EXCLUSIVE MODE;`). `GET /v1/alerts` responde `503` y el panel muestra "Resultado desactualizado"; `ROLLBACK;` lo recupera. Mientras dure el bloqueo, el consumidor también queda esperando.
@@ -1022,9 +1035,19 @@ MSYS_NO_PATHCONV=1 docker run --rm -v "$(pwd -W)/services/mobile:/app" -v fleet-
 MSYS_NO_PATHCONV=1 docker run --rm --network fleet_default -e API_URL=http://api:8000 -v "$(pwd -W)/services/mobile:/app" -v fleet-mobile-modules:/app/node_modules -w /app node:22-bookworm-slim npm run e2e
 ```
 
+`MSYS_NO_PATHCONV` y `$(pwd -W)` son de Git Bash. En PowerShell no hace falta `MSYS_NO_PATHCONV`, y la ruta se toma de `${PWD}`. Estas variantes **no se ejecutaron en el cierre** (Docker no estaba en marcha); sí se comprobaron las variables `$env:` con `docker compose config`:
+
+```powershell
+docker run --rm -v "${PWD}\services\mobile:/app" -v fleet-mobile-modules:/app/node_modules -w /app node:22-bookworm-slim sh -c "npm ci && npm run typecheck && npm test && npx expo export --platform android --output-dir /tmp/dist"
+```
+
+```powershell
+docker run --rm --network fleet_default -e API_URL=http://api:8000 -v "${PWD}\services\mobile:/app" -v fleet-mobile-modules:/app/node_modules -w /app node:22-bookworm-slim npm run e2e
+```
+
 ### Recorrido sin conexión
 
-**En un dispositivo** (pendiente de ejecutar en un teléfono real):
+**En un dispositivo.** El recorrido completo con modo avión y cierre de la app **sigue pendiente**. En el cierre, el usuario probó con Expo Go una variante: detuvo la API en lugar de cortar la red del teléfono, y los pendientes se acumularon y luego se sincronizaron. Falta repetirlo completamente sin red con la APK instalada.
 
 1. Con conexión: configura la URL y el vehículo, inicia la captura y espera unos "Recibidos por el servidor".
 2. Activa el modo avión: la conectividad pasa a "Sin conexión" y crecen los "Pendientes de confirmar".
@@ -1075,6 +1098,10 @@ Con Docker, `SIM_VEHICLES`, `SIM_INTERVAL` y `SIM_DURATION` configuran el servic
 
 ```bash
 SIM_VEHICLES=20 SIM_INTERVAL=1 docker compose --profile demo up -d simulator
+```
+
+```powershell
+$env:SIM_VEHICLES = "20"; $env:SIM_INTERVAL = "1"; docker compose --profile demo up -d simulator; Remove-Item Env:SIM_VEHICLES, Env:SIM_INTERVAL
 ```
 
 ## Ingesta manual
@@ -1244,6 +1271,14 @@ Todo corre con Docker; no hace falta instalar k6 ni Python en la PC. Usa la imag
 
 Las variables de umbral, `PRE_VUS`, `MAX_VUS` y `REQUEST_TIMEOUT` se pasan como variables de entorno. `API_URL` es **obligatoria**: para un entorno externo hay que dar su URL y una red de Docker que la alcance (`NETWORK=host`, por ejemplo).
 
+`loadtest/lt.sh` y `loadtest/chaos.sh` son scripts de bash. Desde PowerShell se ejecutan con Git Bash; la ruta es la de instalación por defecto de Git for Windows:
+
+```powershell
+& "C:\Program Files\Git\bin\bash.exe" -c "API_URL=http://api:8000 loadtest/lt.sh load short-03 20 10 30 7"
+```
+
+En el cierre se comprobó esa forma de invocar Git Bash con una variable desde PowerShell; la carga no se volvió a ejecutar.
+
 1. Construye la imagen de herramientas:
 
    ```bash
@@ -1362,7 +1397,7 @@ La latencia es la de **recepción en la API** (POST hasta el 202).
 | `load-300` | 300 veh, 50/s, 120 s | 5.009 / 588 / 295 | 5.522 confirmados, 295 rechazados, **75 ambiguos**, 0 inesperados | 48,73/s | 109 | 31 ms / 1,76 s / 5,01 s | OK: 4.950 identidades, 59 ambiguas todas persistidas, 300 inválidas no persistidas, 300 vehículos con la posición actual correcta | 0,85 s / 1,76 s |
 | `batch-100` | 100 veh, 2 lotes/s de 25, 60 s | 2.550 / 300 / 150 | 2.850 confirmados, 150 rechazados, 0 ambiguos, 0 inesperados | 2/s (120 lotes) | 0 | 22 ms / 82 ms / 109 ms por lote | OK: 2.550 identidades | 0,58 s / 1,19 s |
 
-Cumplieron los umbrales objetivo **`batch-100`** y `short-03`, este salvo por 2 iteraciones descartadas. `short-02` y `load-300` **no los cumplieron**, y los resultados se conservan tal como se observaron:
+Solo **`batch-100`** cumplió los umbrales objetivo (k6 terminó con código 0). `short-02`, `load-300` y `short-03` **no los cumplieron** (código 99); `short-03` falló solo por 2 iteraciones descartadas, frente a 0 permitidas. Los resultados se conservan tal como se observaron:
 
 - **`short-02`:** todos los 503 fueron en los primeros ~10 s, tras un rato sin tráfico. Kafka tardó más que `KAFKA_SEND_TIMEOUT_S` (5 s) en confirmar, pero publicó los mensajes después.
 - **`load-300`:** el ritmo fue estable (~48/s) salvo entre t+40 s y t+55 s. En esa ventana Kafka dejó de responder: el consumidor registró `SESSTMOUT` (más de 10 s sin respuesta del coordinador), la API agotó el tiempo en 75 publicaciones y Kafka se quedó a ~280 % de CPU. Todas las identidades confirmadas y todas las ambiguas terminaron persistidas, sin duplicados. Los 77 s de espera se debieron a que las consultas de lag de la reconciliación vencían mientras Kafka se recuperaba; los datos ya estaban completos en la primera consulta.
@@ -1482,10 +1517,20 @@ infra/scripts/validate.sh all     # validación sin credenciales (solo requiere 
 
 ## Limitaciones de la etapa 4
 
-- **Proveedor real sin verificar en este entorno:** no había una credencial de Anthropic. Las pruebas usan un modelo guionado. Con el proveedor real solo se verificó, sin red, el payload que arma `langchain-anthropic` (modelo, `max_tokens`, `effort`, `fallbacks`, sin `temperature` ni `tool_choice` forzado). La prueba opcional queda pendiente:
+- **Proveedor real (histórico de la etapa 4, superado en el cierre):** en la etapa 4 no había una credencial de Anthropic. Las pruebas usaban un modelo guionado, y con el proveedor real solo se verificó, sin red, el payload que arma `langchain-anthropic` (modelo, `max_tokens`, `effort`, `fallbacks`, sin `temperature` ni `tool_choice` forzado).
+  - **Actualización del cierre (validación del 2026-11-09):** el usuario configuró la credencial y comprobó en el portal que el asistente responde. La prueba opcional `test_proveedor_real` pasó (paso 12; ver [docs/entrega.md](docs/entrega.md#validación-del-2026-11-09)).
+  - **Sigue pendiente:** revisar a mano, con el modelo real, la hora America/Bogota y el Markdown del texto.
+
+  Prueba opcional (Git Bash, Linux o macOS):
 
   ```bash
   AGENT_REAL_PROVIDER_TEST=1 docker compose --profile test run --rm tests tests/acceptance/test_agent_service.py -v
+  ```
+
+  En PowerShell (la variable queda en la sesión; `Remove-Item` la quita):
+
+  ```powershell
+  $env:AGENT_REAL_PROVIDER_TEST = "1"; docker compose --profile test run --rm tests tests/acceptance/test_agent_service.py -v; Remove-Item Env:AGENT_REAL_PROVIDER_TEST
   ```
 
 - **Sin memoria de conversación:** cada pregunta es independiente, así que "¿y el segundo?" no se entiende.
@@ -1496,7 +1541,11 @@ infra/scripts/validate.sh all     # validación sin credenciales (solo requiere 
 
 ## Limitaciones de la etapa 5
 
-- **Sin prueba en un dispositivo:** la app no se ejecutó en un teléfono ni en un emulador Android, porque este entorno no tiene ninguno. Sí se verificó:
+- **Prueba en un dispositivo (histórico de la etapa 5, actualizado en el cierre):** en la etapa 5 la app no se ejecutó en un teléfono ni en un emulador Android.
+  - **Actualización del cierre (2026-11-09):** el usuario la probó en un Android con Expo Go, con posiciones simuladas. Los pendientes se acumularon al detener la API y se sincronizaron al recuperarla, y `MOVIL-WILL-001` apareció en el portal. Es una prueba manual informada por el usuario, sin evidencia en el repositorio.
+  - **Siguen pendientes:** la captura con GPS real; el cierre y la reapertura completamente sin red con la APK instalada; y EAS y GitHub Actions.
+
+  En la etapa 5 sí se verificó:
   - Tipos.
   - 55 pruebas de la lógica (42 de cola y contrato con SQLite real, y 13 del ciclo de vida de la captura).
   - El bundle de Android (`expo export`, 682 módulos).
@@ -1504,7 +1553,7 @@ infra/scripts/validate.sh all     # validación sin credenciales (solo requiere 
   - La compatibilidad de dependencias con el SDK 58.
   - El recorrido sin conexión con el núcleo real contra la API real.
 
-  Quedan pendientes en el dispositivo: el permiso, el GPS, NetInfo, la pausa en segundo plano y la interfaz.
+  En el dispositivo quedaban pendientes el permiso, el GPS, NetInfo, la pausa en segundo plano y la interfaz. La prueba con Expo Go del cierre cubrió parte de la interfaz y de la sincronización. El GPS real no se probó.
 - **EAS sin ejecutar:** la compilación necesita una cuenta de Expo (`EXPO_TOKEN`, `eas init`). Tampoco se ejecutó el workflow de GitHub Actions; solo se validó su sintaxis.
 - **Solo con la app abierta:** no hay captura en segundo plano.
 - **Lecturas sin velocidad:** se omiten de la ingesta. Una versión futura podría enviar la velocidad como opcional si el contrato lo admite.
@@ -1537,28 +1586,28 @@ infra/scripts/validate.sh all     # validación sin credenciales (solo requiere 
   - Repetir la carga de la etapa 6 en la instancia.
 - **Una sola instancia en una sola AZ.** La evolución a alta disponibilidad está descrita, no implementada.
 
-**Pendientes que siguen abiertos de etapas anteriores:**
+**Pendientes de etapas anteriores, tal como estaban al terminar la etapa 7** (histórico; el estado vigente está en "Estado al cierre"):
 
-- **Validación del chat con el proveedor real:** nunca se ejecutó con una credencial de Anthropic (etapa 4).
-- **Prueba de la app en Android:** no se ejecutó en un teléfono ni en un emulador (etapa 5).
+- **Validación del chat con el proveedor real:** no se había ejecutado con una credencial de Anthropic (etapa 4). *Resuelta en el cierre.*
+- **Prueba de la app en Android:** no se había ejecutado en un teléfono ni en un emulador (etapa 5). *Parcial en el cierre:* Expo Go con posiciones simuladas; faltan el GPS real y la APK sin red.
 - **Limpieza de la tarea auxiliar de aiokafka:** al reemplazar el productor queda un `Task was destroyed but it is pending!`, cosmético y sin corregir (etapa 6).
 - **Límites de rendimiento observados:** son mediciones locales (4 CPU, 3,78 GiB). Con el endpoint individual, 50/s no se sostuvieron sin respuestas ambiguas; por lotes, 3.000 eventos en 120 lotes cumplieron los umbrales. No hay medición en AWS.
 - **Repetición de aceptación con la API reconstruida:** quedó abierta en las etapas 6 y 7. **Resuelta en el cierre** (ver abajo).
 
-## Estado al cierre (2026-11-08)
+## Estado al cierre (validación del 2026-11-09)
 
-Matriz completa y resultados en [docs/entrega.md](docs/entrega.md); salidas en [docs/verificacion/2026-11-08/](docs/verificacion/2026-11-08/).
+Matriz completa, resultados y pruebas manuales en [docs/entrega.md](docs/entrega.md#validación-del-2026-11-09); salidas en [docs/verificacion/2026-11-09/](docs/verificacion/2026-11-09/). Commit validado: `6235fd9`.
 
 | Pendiente | Estado |
 |---|---|
-| Repetir la aceptación con la API reconstruida | **Resuelto.** Stack reconstruido con `ResilientProducer` y suite de unitarias y aceptación: 236 pasadas, 0 fallidas y 36 omitidas con motivo (pasos 01 a 03) |
-| `terraform validate` | **Resuelto** en la etapa 7 (auditoría #131) y repetido en el cierre (paso 10) |
-| Chat con el proveedor real | Pendiente: no hay credencial |
-| Captura y cierre real en Android | Pendiente: no hay teléfono ni emulador. El e2e con SQLite y la API reales pasó (paso 05) |
+| Unitarias y aceptación | **249 pasadas, 0 fallidas, 36 omitidas** con motivo (paso 03). Una pasada previa con el equipo saturado falló por tiempos de espera y se conserva como evidencia |
+| `terraform validate` e infraestructura sin credenciales | **OK** (`validate.sh all`, paso 10) |
+| Chat con el proveedor real | **Resuelto:** respondió en el portal (prueba manual del usuario) y `test_proveedor_real` pasó (paso 12). Pendiente: revisar, con el modelo real, la hora America/Bogota y el Markdown del texto |
+| App en Android | **Parcial:** el usuario la probó con Expo Go (posiciones simuladas, pendientes y sincronización tras detener y recuperar la API). Pendientes: GPS real; cierre y reapertura sin red con la APK |
 | Ejecución de GitHub Actions y EAS | Pendiente: sin push de esta rama ni cuenta de Expo. Se comprobaron el orden de pasos (paso 09) y el bundle (paso 08) |
-| Plan, despliegue y restauración real en AWS | Pendiente: sin cuenta. Validación sin credenciales en el paso 10 |
+| Plan, despliegue y restauración real en AWS | Pendiente: sin cuenta |
 | Tarea auxiliar de aiokafka | Pendiente (cosmético) |
-| Capacidad medida y objetivos de rendimiento | Pendiente: `load-300` no cumplió los umbrales; no se repitió la carga en el cierre |
+| Capacidad y objetivos de rendimiento | **No aprobado:** `load-300`, `short-02` y `short-03` incumplieron los umbrales (k6 con código 99); solo `batch-100` cumplió. No se repitió la carga |
 
 ## Reiniciar desde cero
 

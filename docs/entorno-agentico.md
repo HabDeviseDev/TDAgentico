@@ -70,14 +70,14 @@ Antes de grabar, deja listo lo siguiente:
 - El repositorio abierto en la app de Claude Code, con el historial de la sesión.
 - Una terminal en la raíz del repositorio.
 - `docs/auditoria-ia.md` abierto.
-- La carpeta `docs/verificacion/2026-11-08/`.
+- La carpeta `docs/verificacion/2026-11-09/`.
 
 | Tiempo | Qué mostrar | Qué decir |
 |---|---|---|
 | 0:00–0:20 | En la app, la solicitud de una etapa: por ejemplo, la de la etapa 6 (carga y caos) o la de corrección de la etapa 1 | "Cada etapa empezó con una solicitud escrita con alcance, garantías y criterios de verificación. Claude leía el repositorio antes de cambiar nada." |
 | 0:20–0:40 | `git log --oneline --graph --all` y la tabla de etapas de este documento | "Una rama por etapa, cada una desde la anterior. El segundo commit de cada etapa corrige lo que encontró mi revisión." |
 | 0:40–1:15 | `docs/auditoria-ia.md`: #1 (decisiones aprobadas), #3 (acción bloqueada por debilitar TLS), #105 a #109 (defecto encontrado por el caos y corregido) y #128 (error de la IA) | "La auditoría registra decisiones, errores de la IA y verificaciones, también las que fallaron. Por ejemplo, el caos reveló que la API necesitaba reiniciarse tras caer Kafka." |
-| 1:15–1:40 | `docs/verificacion/2026-11-08/resumen.tsv` y un log, como `03-pytest-unitarias-aceptacion.log` | "La verificación final quedó guardada completa: commit, comando, código de salida y duración de cada paso." |
+| 1:15–1:40 | `docs/verificacion/2026-11-09/resumen.tsv` y un log, como `03-pytest-unitarias-aceptacion.log` | "La verificación final quedó guardada completa: commit, comando, código de salida y duración de cada paso." |
 | 1:40–2:00 | `CLAUDE.md` | "Al cerrar, reuní en `CLAUDE.md` las reglas que se aplicaron en la práctica. Se agregó en el cierre, no al principio." |
 
 Si el historial de la sesión ya no está disponible en la app, muestra la solicitud de la etapa reconstruida desde el commit y su entrada de auditoría, y dilo así.
