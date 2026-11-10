@@ -1,0 +1,45 @@
+# 04-demo-alertas
+# inicio: 2026-11-08T16:52:27Z
+# comando: docker compose --profile demo run --rm -T demo-alerts --once
+
+ Container fleet-api-1 Running 
+ Container fleet-kafka-1 Running 
+ Container fleet-timescaledb-1 Running 
+ Container fleet-kafka-1 Waiting 
+ Container fleet-timescaledb-1 Waiting 
+ Container fleet-timescaledb-1 Healthy 
+ Container fleet-migrate-1 Starting 
+ Container fleet-kafka-1 Healthy 
+ Container fleet-kafka-init-1 Starting 
+ Container fleet-migrate-1 Started 
+ Container fleet-kafka-init-1 Started 
+ Container fleet-migrate-1 Waiting 
+ Container fleet-kafka-init-1 Waiting 
+ Container fleet-migrate-1 Exited 
+ Container fleet-kafka-init-1 Exited 
+ Container fleet-api-1 Waiting 
+ Container fleet-api-1 Healthy 
+ Container fleet-demo-alerts-run-c4212036b5b7 Creating 
+ Container fleet-demo-alerts-run-c4212036b5b7 Created 
+=== ESCENARIOS DE DEMOSTRACIÓN (datos ficticios) ===
+API http://api:8000 · etiqueta 1653 · hora de referencia 2026-11-08T16:53:14.000000Z
+  DEMO-1653-ZONA25: 51 muestras · esperado: alerta en DEMO-Z01
+  DEMO-1653-FUERA: 61 muestras · esperado: sin alerta (fuera de zonas)
+  DEMO-1653-MOVIL: 51 muestras · esperado: sin alerta (en movimiento)
+  DEMO-1653-HUECO: 70 muestras · esperado: sin alerta (interrupción de 6 min)
+  DEMO-1653-SINDATOS: 79 muestras · esperado: evidencia insuficiente (última muestra hace 6 min)
+  DEMO-1653-ATRASADO: 61 muestras · esperado: alerta en DEMO-Z04, retirada por evento atrasado
+Esperando la alerta de DEMO-1653-ATRASADO…
+  antes del evento atrasado: alerta (DEMO-Z04)
+  publicado evento atrasado efaae5db-3c25-4770-af6a-cf95ee382cd4 (2026-11-08T16:41:29.000000Z, 30 km/h)
+  después del evento atrasado: sin alerta
+Estado según GET /v1/alerts:
+  DEMO-1653-ZONA25       alerta (DEMO-Z01)                        esperado: alerta en DEMO-Z01
+  DEMO-1653-FUERA        sin alerta                               esperado: sin alerta (fuera de zonas)
+  DEMO-1653-MOVIL        sin alerta                               esperado: sin alerta (en movimiento)
+  DEMO-1653-HUECO        sin alerta                               esperado: sin alerta (interrupción de 6 min)
+  DEMO-1653-SINDATOS     evidencia insuficiente (stale_last_sample) esperado: evidencia insuficiente (última muestra hace 6 min)
+  DEMO-1653-ATRASADO     sin alerta                               esperado: alerta en DEMO-Z04, retirada por evento atrasado
+Fin (--once). Sin muestras nuevas, las alertas pasarán a evidencia insuficiente cuando la última muestra supere la antigüedad máxima.
+
+# fin: 2026-11-08T16:53:33Z  código: 0  duración: 66 s

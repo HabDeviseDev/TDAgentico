@@ -1,0 +1,34 @@
+#!/bin/bash
+# Arranque inicial de la instancia (cloud-init, solo en el primer arranque).
+# No contiene secretos: solo referencias (ARN) que se resuelven al desplegar.
+set -euo pipefail
+exec > >(tee -a /var/log/fleet-bootstrap.log) 2>&1
+echo "[bootstrap] inicio $(date -Is)"
+
+install -d -m 0755 /opt/fleet /opt/fleet/bin /opt/fleet/releases /var/log/fleet
+install -d -m 0700 /etc/fleet /var/lib/fleet
+
+# Configuración NO secreta del despliegue (la generó Terraform).
+umask 077
+cat > /etc/fleet/deploy.env <<'EOF'
+%{ for k, v in deploy_env ~}
+${k}='${v}'
+%{ endfor ~}
+FLEET_ARCH='${architecture}'
+EOF
+umask 022
+
+echo '${install_docker_b64}' | base64 -d > /opt/fleet/bin/install-docker
+echo '${fleet_deploy_b64}' | base64 -d > /opt/fleet/bin/fleet-deploy
+chmod 0755 /opt/fleet/bin/install-docker /opt/fleet/bin/fleet-deploy
+
+/opt/fleet/bin/install-docker '${compose_version}' '${buildx_version}' '${architecture}'
+
+%{ if auto_deploy ~}
+# Primer despliegue. Si falla, el error queda en /var/log/fleet/ y se
+# reintenta con: sudo /opt/fleet/bin/fleet-deploy
+/opt/fleet/bin/fleet-deploy
+%{ else ~}
+echo "[bootstrap] auto_deploy = false: ejecute /opt/fleet/bin/fleet-deploy <SHA> por SSM"
+%{ endif ~}
+echo "[bootstrap] fin $(date -Is)"

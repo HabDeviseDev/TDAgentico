@@ -1,0 +1,4 @@
+fleet-chaos-kafka-1 cpu=140.38% mem=450.7MiB / 3.778GiB
+fleet-chaos-api-1 cpu=0.84% mem=70.41MiB / 3.778GiB
+fleet-chaos-kafka-init-1 cpu=173.85% mem=39.7MiB / 3.778GiB
+fleet-chaos-timescaledb-1 cpu=0.10% mem=39.17MiB / 3.778GiB

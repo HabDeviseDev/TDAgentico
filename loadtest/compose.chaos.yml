@@ -1,0 +1,25 @@
+# Override para el proyecto de caos (docker compose -p fleet-chaos …).
+# - Sin puertos publicados: no choca con el stack principal y solo se accede
+#   desde su red (fleet-chaos_default).
+# - Volúmenes propios: Compose los nombra fleet-chaos_kafka-data y
+#   fleet-chaos_tsdb-data; el stack principal no se toca.
+# - Heap de Kafka configurable (CHAOS_KAFKA_HEAP). En este equipo los dos stacks
+#   no caben a la vez: se detiene el principal mientras corren los escenarios.
+services:
+  kafka:
+    ports: !reset []
+    environment:
+      # Con 384 MB el broker no terminó de arrancar en este equipo (ver auditoría).
+      KAFKA_HEAP_OPTS: ${CHAOS_KAFKA_HEAP:--Xmx1G -Xms1G}
+  timescaledb:
+    ports: !reset []
+  api:
+    ports: !reset []
+  agent:
+    ports: !reset []
+  portal:
+    ports: !reset []
+  consumer:
+    environment:
+      # Reinicios rápidos del consumidor tras un fallo de la BD.
+      KAFKA_SESSION_TIMEOUT_MS: "10000"

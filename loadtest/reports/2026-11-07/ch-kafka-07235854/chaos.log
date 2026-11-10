@@ -1,0 +1,52 @@
+[23:58:55] Escenario kafka · ejecución ch-kafka-07235854 · 30 vehículos, 10/s, 150s, falla en t+10s durante 40s
+[23:58:55] Levantando el proyecto fleet-chaos (puede tardar varios minutos la primera vez)…
+[00:02:18] La carga empezó; falla en 10s
+[00:03:01] Antes de la falla: mensajes=3102 confirmados=3097 lag=5
+[00:03:02] FALLA: docker compose -p fleet-chaos -f docker-compose.yml -f loadtest/compose.chaos.yml stop kafka
+[00:03:42] Con la falla (t+15s): kafka sin respuesta
+[00:03:45] RECUPERACIÓN tras 42s: docker compose -p fleet-chaos -f docker-compose.yml -f loadtest/compose.chaos.yml start kafka
+[00:04:18] Tras arrancar: kafka sin respuesta
+[00:06:25] k6 terminó (código 0)
+Ejecución ch-kafka-07235854 (ingest)
+  enviados: nuevos=1242 reenvíos=146 inválidos=73
+  confirmados=504 rechazos_esperados=73 ambiguos=884 inesperados=0
+  iteraciones=1461 tasa_real=9.38/s descartadas=40
+  latencia (ms) p50=1347.63 p95=5025.64 p99=5139.04 max=5540.99
+  UMBRALES NO CUMPLIDOS: lt_latency{kind:new}
+time="2026-11-08T00:04:52Z" level=error msg="thresholds on metrics 'lt_latency{kind:new}' have been crossed"
+k6 terminó con código 99 (99 = algún umbral no se cumplió)
+[00:06:41] Reconciliación previa para extraer los eventos ambiguos…
+[00:07:00] Recuperación (1/3): mensajes=3356 confirmados=3356 lag=0
+[00:07:04] Reenvío de ambiguos con el mismo event_id y contenido
+[00:07:26] Recuperación (2/3): mensajes=3356 confirmados=3356 lag=0
+[00:07:46] Recuperación (3/3): mensajes=3410 confirmados=3405 lag=5
+Reenviando 789 eventos ambiguos con el mismo event_id y contenido (5/s, 159s)
+Ejecución ch-kafka-07235854 (resend)
+  enviados: nuevos=789 reenvíos=0 inválidos=0
+  confirmados=789 rechazos_esperados=0 ambiguos=0 inesperados=0
+  iteraciones=796 tasa_real=5.01/s descartadas=0
+  latencia (ms) p50=8.21 p95=38.82 p99=112.31 max=330.5
+  umbrales: cumplidos
+k6 terminó con código 0 (99 = algún umbral no se cumplió)
+[00:10:16] Reconciliación final (espera máx. 180s)…
+# Reconciliación ch-kafka-07235854
+
+- Generado: 2026-11-08T00:10:37.727876+00:00 · commit `4ca1f2c`
+- Parámetros: {"mode": "single", "vehicles": 30, "rate": 10.0, "duration_s": 150, "seed": 1, "iterations": 1500, "batch_size": null, "planned_requests": 1500}
+- Planificado: {"counts": {"new": 1275, "dup": 150, "invalid": 75}, "unique_identities": 1275}
+- Ejecutado (por tipo y resultado): {"new": {"confirmed": 1241, "sent": 1242, "ambiguous": 1, "not_sent": 33}, "invalid": {"expected_rejection": 73, "sent": 73, "not_sent": 2}, "dup": {"confirmed": 52, "sent": 146, "ambiguous": 94, "not_sent": 4}}
+- Identidades: {"identities": 1350, "confirmed": 1242, "ambiguous": 0, "ambiguous_persisted": 0, "invalid": 75, "not_sent": 33, "unexpected": 0, "persisted_ok": 1242, "vehicles_checked": 30}
+- Ambiguos: 0 (persistidos 0, no persistidos 0)
+- DLQ: {"checked": true, "scanned": 0}, mensajes de la ejecución: 0
+- Espera: 2.6 s (máx. 180.0), lag final 0
+- Tiempo hasta persistencia (ms): {"p50": 624.398, "p95": 1815.481, "p99": 37501.794}
+- Discrepancias: 0
+- **Resultado: OK**
+
+
+[00:10:42] Reconciliación: código 0 (0 = sin discrepancias)
+[00:10:42] Restaurando servicios del proyecto de caos (kafka, timescaledb, consumer, api)…
+api running
+consumer running
+kafka running
+timescaledb running

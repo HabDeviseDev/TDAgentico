@@ -1,0 +1,16 @@
+# Estado remoto recomendado para uso compartido: copie a backend.tf y ajuste.
+# El bucket se crea aparte (normalmente en la cuenta de herramientas o en la
+# de la carga de trabajo), con versionado y cifrado. use_lockfile usa el
+# bloqueo nativo de S3 (Terraform >= 1.10), sin tabla DynamoDB.
+#
+# Luego: terraform init -migrate-state
+
+terraform {
+  backend "s3" {
+    bucket       = "mi-org-terraform-state"
+    key          = "fleet/demo/terraform.tfstate"
+    region       = "us-east-1"
+    encrypt      = true
+    use_lockfile = true
+  }
+}

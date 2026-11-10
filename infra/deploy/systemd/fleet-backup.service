@@ -1,0 +1,11 @@
+[Unit]
+Description=Fleet: respaldo lógico de PostgreSQL
+After=docker.service
+Requires=docker.service
+RequiresMountsFor=/data
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/fleet-backup
+Nice=10
+IOSchedulingClass=idle

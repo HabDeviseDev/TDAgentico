@@ -1,0 +1,78 @@
+# Plantilla procesada por envsubst al arrancar la imagen oficial de nginx.
+# Solo se sustituyen variables de entorno definidas (API_UPSTREAM,
+# PORTAL_*); las variables de nginx como $host quedan intactas.
+
+server {
+    listen 80;
+    server_name _;
+    root /usr/share/nginx/html;
+
+    # DNS interno de Docker. Con `proxy_pass $variable`, nginx resuelve el
+    # nombre en cada petición (con caché de 10 s) en lugar de una sola vez al
+    # arrancar: si se recrea un contenedor y cambia su IP, el portal la
+    # encuentra sin reiniciarse. Con una URL fija en proxy_pass, nginx
+    # conservaría la IP antigua y respondería 502.
+    resolver 127.0.0.11 valid=10s ipv6=off;
+    resolver_timeout 5s;
+    set $api_upstream http://${API_UPSTREAM};
+    set $agent_upstream http://${AGENT_UPSTREAM};
+
+    # Configuración en tiempo de ejecución para la SPA.
+    location = /config.json {
+        default_type application/json;
+        add_header Cache-Control "no-store";
+        return 200 '{"staleAfterSeconds": ${PORTAL_STALE_AFTER_SECONDS}, "connectionTimeoutSeconds": ${PORTAL_CONNECTION_TIMEOUT_SECONDS}}';
+    }
+
+    # SSE: sin buffering ni compresión, conexión persistente hacia la API.
+    location = /v1/vehicles/stream {
+        proxy_pass $api_upstream;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_buffering off;
+        proxy_cache off;
+        gzip off;
+        # La API envía un heartbeat cada SSE_HEARTBEAT_S (15 s): el tiempo de
+        # espera entre lecturas debe ser bastante mayor para no cortar el stream.
+        proxy_read_timeout ${PORTAL_SSE_READ_TIMEOUT};
+        proxy_send_timeout ${PORTAL_SSE_READ_TIMEOUT};
+    }
+
+    # Chat del agente operativo (servicio aparte). Como el nombre se resuelve
+    # en cada petición, el portal arranca aunque el agente no esté levantado
+    # (el chat responde 502 y el portal lo muestra).
+    location /v1/chat {
+        proxy_pass $agent_upstream;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        client_max_body_size 16k;
+        proxy_read_timeout ${PORTAL_CHAT_READ_TIMEOUT};
+    }
+
+    # REST (consulta e ingesta) desde el mismo origen del portal.
+    location /v1/ {
+        proxy_pass $api_upstream;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_read_timeout 30s;
+    }
+
+    location = /health {
+        proxy_pass $api_upstream;
+    }
+
+    # Archivos con hash de Vite: caché larga.
+    location /assets/ {
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        try_files $uri =404;
+    }
+
+    location / {
+        add_header Cache-Control "no-cache";
+        try_files $uri /index.html;
+    }
+}

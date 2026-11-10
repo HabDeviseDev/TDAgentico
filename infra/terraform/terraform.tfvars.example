@@ -1,0 +1,39 @@
+# Copie a terraform.tfvars (ignorado por Git) y ajuste. No contiene ni debe
+# contener credenciales: los secretos se referencian por ARN.
+
+region      = "us-east-1"
+environment = "demo"
+
+# x86_64 de 2 vCPU y 8 GiB (ver docs/arquitectura-aws.md, dimensionamiento).
+# Para Graviton use, por ejemplo, "t4g.large": la AMI se elige sola.
+instance_type       = "t3.large"
+root_volume_size_gb = 30
+data_volume_size_gb = 50
+
+# Quién puede abrir el portal. Use su IP pública /32 o la red de la oficina.
+allowed_cidrs = ["203.0.113.10/32"]
+
+# Commit exacto a desplegar: git rev-parse HEAD
+git_revision = "0000000000000000000000000000000000000000"
+
+# Secretos existentes en Secrets Manager (se crean aparte, ver infra/README.md).
+postgres_secret_arn  = "arn:aws:secretsmanager:us-east-1:111122223333:secret:fleet/demo/postgres-AbCdEf"
+anthropic_secret_arn = "arn:aws:secretsmanager:us-east-1:111122223333:secret:fleet/demo/anthropic-AbCdEf"
+# git_token_secret_arn = "..."  # solo si el repositorio es privado
+
+# HTTPS (necesario para la app Android fuera de la red local):
+# domain_name = "flota.example.com"
+# acme_email  = "operaciones@example.com"
+
+# Avisos de alarmas por correo:
+# alarm_email = "operaciones@example.com"
+
+snapshots_enabled       = true
+snapshot_interval_hours = 24
+snapshot_retain_count   = 7
+
+backup_bucket_enabled = false
+
+extra_tags = {
+  Owner = "equipo-flota"
+}

@@ -1,0 +1,16 @@
+   5828 ERROR:aiokafka:Unable to update metadata from [1]
+   5810 ERROR:aiokafka:Unable connect to node with id 1: [Errno 111] Connection refused
+    697 ERROR:api.ingest:Kafka no confirmó event_id=<id>: LeaderNotAvailableError()
+    313 WARNING:aiokafka.producer.sender:Got error produce response on topic-partition TopicPartition(topic='fleet.positions.v1', partition=1), retrying. Error: <class 'aiokafka.errors.NotLeaderForPartitionEr
+    306 ERROR:api.ingest:Kafka no confirmó event_id=<id>: TimeoutError()
+    281 WARNING:aiokafka.producer.sender:Got error produce response on topic-partition TopicPartition(topic='fleet.positions.v1', partition=0), retrying. Error: <class 'aiokafka.errors.NotLeaderForPartitionEr
+     29 WARNING:aiokafka.producer.sender:Got error produce response on topic-partition TopicPartition(topic='fleet.positions.v1', partition=2), retrying. Error: <class 'aiokafka.errors.NotLeaderForPartitionEr
+     16 ERROR:aiokafka:Unable connect to node with id 1: [Errno -2] Name or service not known
+     10 ERROR:api.ingest:Kafka no confirmó event_id=<id>: OutOfOrderSequenceNumber()
+      1 task: <Task pending name='Task-1891' coro=<MessageAccumulator.close() running at /usr/local/lib/python3.12/site-packages/aiokafka/producer/message_accumulator.py:378> wait_for=<Future pending cb=[Task
+      1 WARNING:api.ingest:Productor Kafka inservible (OutOfOrderSequenceNumber()); creando uno nuevo
+      1 WARNING:api.ingest:El productor anterior no cerró limpio (TimeoutError()); cierre forzado
+      1 WARNING:aiokafka:Unable to request metadata from node with id 1: KafkaConnectionError('Connection at kafka:9092 closed')
+      1 INFO:api.ingest:Productor Kafka reemplazado (reemplazo n.º 1)
+      1 ERROR:asyncio:Task was destroyed but it is pending!
+      1 ERROR:aiokafka:Unable connect to node with id 1: 

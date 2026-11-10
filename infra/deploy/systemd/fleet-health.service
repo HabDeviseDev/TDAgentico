@@ -1,0 +1,11 @@
+[Unit]
+Description=Fleet: estado de servicios y disco hacia CloudWatch
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/fleet-health --publish
+# Un servicio caído no debe marcar la unidad como fallida en bucle; la
+# alarma de CloudWatch es la que avisa.
+SuccessExitStatus=1

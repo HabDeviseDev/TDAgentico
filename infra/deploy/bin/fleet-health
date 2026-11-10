@@ -1,0 +1,38 @@
+#!/bin/bash
+# Estado de los servicios y del disco. Lo ejecuta cada minuto
+# fleet-health.timer con --publish (envía métricas a CloudWatch).
+# Uso: fleet-health [--publish]
+set -euo pipefail
+# shellcheck source=infra/deploy/lib.sh
+source /opt/fleet/current/infra/deploy/lib.sh
+# shellcheck source=/dev/null
+source "$FLEET_ETC/deploy.env"
+
+healthy=1
+for svc in "${FLEET_SERVICES[@]}"; do
+  state=$(fleet_service_state "$svc")
+  # consumer y caddy no tienen healthcheck: basta con "running".
+  case "$svc:$state" in
+    *:healthy | consumer:running | caddy:running) ok=1 ;;
+    *) ok=0 ;;
+  esac
+  [ "$ok" = 1 ] || healthy=0
+  printf '%-12s %s\n' "$svc" "$state"
+done
+
+pct() { df --output=pcent "$1" | tail -1 | tr -dc '0-9'; }
+data_pct=$(mountpoint -q "$FLEET_DATA_DIR" && pct "$FLEET_DATA_DIR" || echo 100)
+root_pct=$(pct /)
+mem_pct=$(awk '/MemTotal/ {t=$2} /MemAvailable/ {a=$2} END {printf "%d", (t-a)*100/t}' /proc/meminfo)
+printf 'disco /data %s%%  disco / %s%%  memoria %s%%  servicios_ok=%s\n' \
+  "$data_pct" "$root_pct" "$mem_pct" "$healthy"
+
+if [ "${1:-}" = --publish ]; then
+  aws cloudwatch put-metric-data --region "$FLEET_REGION" --namespace "$FLEET_METRIC_NS" \
+    --metric-data \
+    "MetricName=ServicesHealthy,Value=$healthy,Unit=Count" \
+    "MetricName=DataDiskUsedPercent,Value=$data_pct,Unit=Percent" \
+    "MetricName=RootDiskUsedPercent,Value=$root_pct,Unit=Percent" \
+    "MetricName=MemoryUsedPercent,Value=$mem_pct,Unit=Percent"
+fi
+[ "$healthy" = 1 ]

@@ -1,0 +1,80 @@
+{
+  "run_id": "short-03",
+  "vehicle": "LT-short-03-PROBE",
+  "count": 10,
+  "seen": 10,
+  "receive_ms": {
+    "p50": 26.4,
+    "p95": 94.3,
+    "p99": 94.3
+  },
+  "ack_to_portal_ms": {
+    "p50": 1042.6,
+    "p95": 1557.3,
+    "p99": 1557.3
+  },
+  "samples": [
+    {
+      "event_id": "c9b231c9-e654-40eb-9b69-613091dc3592",
+      "status": 202,
+      "receive_ms": 8.3,
+      "ack_to_portal_ms": 1557.3
+    },
+    {
+      "event_id": "e70c26a4-bf42-4fdb-a8ae-83925f3efb01",
+      "status": 202,
+      "receive_ms": 48.7,
+      "ack_to_portal_ms": 1239.8
+    },
+    {
+      "event_id": "06254561-9770-4805-b571-3c4a9a5c2c44",
+      "status": 202,
+      "receive_ms": 50.2,
+      "ack_to_portal_ms": 1134.5
+    },
+    {
+      "event_id": "6b995b65-7439-4b4a-a8cc-916b769344f8",
+      "status": 202,
+      "receive_ms": 22.9,
+      "ack_to_portal_ms": 1028.9
+    },
+    {
+      "event_id": "d118a53f-ae29-4935-8af5-4916b74abb50",
+      "status": 202,
+      "receive_ms": 31.2,
+      "ack_to_portal_ms": 1042.6
+    },
+    {
+      "event_id": "8a187731-7b4b-4066-940e-0052d8f291f1",
+      "status": 202,
+      "receive_ms": 26.1,
+      "ack_to_portal_ms": 1012.0
+    },
+    {
+      "event_id": "622532e0-8a94-4d7a-8dd9-2065afc7389d",
+      "status": 202,
+      "receive_ms": 59.0,
+      "ack_to_portal_ms": 1065.7
+    },
+    {
+      "event_id": "99e7a0db-ef1d-431d-8f55-a109f6c25e1c",
+      "status": 202,
+      "receive_ms": 94.3,
+      "ack_to_portal_ms": 1084.1
+    },
+    {
+      "event_id": "05eddaf6-362a-4bf6-b47e-543bf94c3e00",
+      "status": 202,
+      "receive_ms": 5.6,
+      "ack_to_portal_ms": 1016.5
+    },
+    {
+      "event_id": "aa957671-c9ac-4f69-91ee-5afb09820b04",
+      "status": 202,
+      "receive_ms": 26.4,
+      "ack_to_portal_ms": 1024.2
+    }
+  ],
+  "portal_url": "http://portal",
+  "measured_at": "2026-11-07T01:57:36.491286+00:00"
+}

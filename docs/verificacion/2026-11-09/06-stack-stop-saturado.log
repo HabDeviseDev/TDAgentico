@@ -1,0 +1,22 @@
+# 06-stack-stop
+# inicio: 2026-11-09T22:48:58Z
+# comando: docker compose stop
+
+ Container fleet-consumer-1 Stopping 
+ Container fleet-portal-1 Stopping 
+ Container fleet-agent-1 Stopping 
+ Container fleet-consumer-1 Stopped 
+ Container fleet-agent-1 Stopped 
+ Container fleet-portal-1 Stopped 
+ Container fleet-api-1 Stopping 
+ Container fleet-api-1 Stopped 
+ Container fleet-migrate-1 Stopping 
+ Container fleet-kafka-init-1 Stopping 
+ Container fleet-kafka-init-1 Stopped 
+ Container fleet-kafka-1 Stopping 
+ Container fleet-migrate-1 Stopped 
+ Container fleet-timescaledb-1 Stopping 
+ Container fleet-timescaledb-1 Stopped 
+ Container fleet-kafka-1 Stopped 
+
+# fin: 2026-11-09T22:50:25Z  código: 0  duración: 87 s

@@ -1,0 +1,83 @@
+{
+  "run_id": "short-03",
+  "generated_at": "2026-11-07T01:56:52.414369+00:00",
+  "git_commit": "b7cdc62",
+  "params": {
+    "mode": "single",
+    "vehicles": 20,
+    "rate": 10.0,
+    "duration_s": 30,
+    "seed": 7,
+    "iterations": 300,
+    "batch_size": null,
+    "planned_requests": 300
+  },
+  "planned": {
+    "counts": {
+      "new": 255,
+      "dup": 30,
+      "invalid": 15
+    },
+    "unique_identities": 255
+  },
+  "executed": {
+    "new": {
+      "confirmed": 254,
+      "sent": 254,
+      "not_sent": 1
+    },
+    "invalid": {
+      "expected_rejection": 15,
+      "sent": 15
+    },
+    "dup": {
+      "confirmed": 30,
+      "sent": 30
+    }
+  },
+  "result_files": [
+    "k6-points-ingest.json"
+  ],
+  "identities": {
+    "identities": 270,
+    "confirmed": 254,
+    "ambiguous": 0,
+    "ambiguous_persisted": 0,
+    "invalid": 15,
+    "not_sent": 1,
+    "unexpected": 0,
+    "persisted_ok": 254,
+    "vehicles_checked": 20
+  },
+  "ambiguous": {
+    "count": 0,
+    "persisted": 0,
+    "not_persisted": 0,
+    "items": []
+  },
+  "dlq": {
+    "checked": true,
+    "scanned": 17,
+    "hits": []
+  },
+  "wait": {
+    "seconds": 0.3,
+    "max_wait_s": 90.0,
+    "polls": [
+      {
+        "t": 0.3,
+        "missing_confirmed": 0,
+        "lag": 0
+      }
+    ],
+    "final_lag": 0
+  },
+  "persistence_latency_ms": {
+    "p50": 696.406,
+    "p95": 1229.405,
+    "p99": 1598.754
+  },
+  "discrepancies": [],
+  "discrepancy_count": 0,
+  "ok": true
+}

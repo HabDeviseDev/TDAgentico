@@ -1,0 +1,273 @@
+name: fleet
+
+services:
+  kafka:
+    image: apache/kafka:3.8.1
+    hostname: kafka
+    ports:
+      - "9094:9094"   # acceso desde el host (pruebas)
+    environment:
+      # ID fijo del clúster KRaft. El volumen queda formateado con este ID:
+      # si se cambia, Kafka no arranca con el volumen existente.
+      CLUSTER_ID: RiVZy4ZtS2iQx_GDl38DwQ
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:9094
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,EXTERNAL://localhost:9094
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      # Mensajes, offsets (__consumer_offsets) y metadatos KRaft
+      # (metadata.log.dir toma por defecto el primer log.dirs).
+      # La imagen trae /tmp/kraft-combined-logs, que se pierde al recrear.
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+    volumes:
+      # /var/lib/kafka/data existe en la imagen con dueño appuser (uid 1000),
+      # así el volumen nombrado hereda permisos de escritura.
+      - kafka-data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 > /dev/null 2>&1"]
+      interval: 5s
+      timeout: 10s
+      retries: 20
+      start_period: 60s
+
+  kafka-init:
+    image: apache/kafka:3.8.1
+    depends_on:
+      kafka:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        T=/opt/kafka/bin/kafka-topics.sh
+        $$T --bootstrap-server kafka:9092 --create --if-not-exists --topic fleet.positions.v1 --partitions 3 --replication-factor 1
+        $$T --bootstrap-server kafka:9092 --create --if-not-exists --topic fleet.positions.dlq --partitions 1 --replication-factor 1
+        echo "Tópicos listos"
+    restart: "no"
+
+  timescaledb:
+    image: timescale/timescaledb:2.17.2-pg16
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: fleet
+      POSTGRES_PASSWORD: fleet
+      POSTGRES_DB: fleet
+      TIMESCALEDB_TELEMETRY: "off"
+    volumes:
+      - tsdb-data:/var/lib/postgresql/data
+    healthcheck:
+      # -h 127.0.0.1: durante la inicialización Postgres solo escucha por socket,
+      # así el healthcheck no pasa antes de terminar initdb.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U fleet -d fleet"]
+      interval: 3s
+      timeout: 5s
+      retries: 30
+      # La primera inicialización puede tardar varios minutos en
+      # Docker Desktop para Windows.
+      start_period: 300s
+
+  # Aplica db/migrations/*.sql en orden y registra cada versión en
+  # schema_migrations. Funciona con un volumen nuevo y con uno existente.
+  migrate:
+    image: timescale/timescaledb:2.17.2-pg16
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+    environment:
+      PGHOST: timescaledb
+      PGUSER: fleet
+      PGPASSWORD: fleet
+      PGDATABASE: fleet
+    volumes:
+      - ./db:/db:ro
+    entrypoint: ["sh", "/db/migrate.sh"]
+    restart: "no"
+
+  api:
+    build:
+      context: .
+      dockerfile: services/api/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_SEND_TIMEOUT_S: "5"
+      # POST /v1/positions/batch: máximo de eventos y de bytes por solicitud.
+      BATCH_MAX_EVENTS: ${BATCH_MAX_EVENTS:-200}
+      BATCH_MAX_BYTES: ${BATCH_MAX_BYTES:-262144}
+      DATABASE_URL: postgresql://fleet:fleet@timescaledb:5432/fleet
+      DB_POOL_MAX: "5"
+      # Límite de una lectura de posiciones (conexión + consulta).
+      DB_READ_TIMEOUT_S: ${DB_READ_TIMEOUT_S:-3}
+      # Lectura compartida de vehicle_current_position para el SSE.
+      VEHICLES_POLL_INTERVAL_S: ${VEHICLES_POLL_INTERVAL_S:-1}
+      SSE_HEARTBEAT_S: ${SSE_HEARTBEAT_S:-15}
+      SSE_MAX_CLIENTS: "500"
+      # Regla de detención en zonas (valores iniciales de demostración).
+      ALERT_MAX_SPEED_KMH: ${ALERT_MAX_SPEED_KMH:-3}
+      ALERT_MAX_DISPLACEMENT_M: ${ALERT_MAX_DISPLACEMENT_M:-50}
+      ALERT_MAX_GAP_S: ${ALERT_MAX_GAP_S:-120}
+      ALERT_MAX_SAMPLE_AGE_S: ${ALERT_MAX_SAMPLE_AGE_S:-120}
+      ALERT_AFTER_S: ${ALERT_AFTER_S:-1200}
+      ALERT_WINDOW_S: ${ALERT_WINDOW_S:-7200}
+      ALERTS_MAX_VEHICLES: ${ALERTS_MAX_VEHICLES:-1000}
+      ALERTS_MAX_ROWS: ${ALERTS_MAX_ROWS:-100000}
+      ALERTS_EVAL_INTERVAL_S: ${ALERTS_EVAL_INTERVAL_S:-5}
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  consumer:
+    build:
+      context: .
+      dockerfile: services/consumer/Dockerfile
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_GROUP_ID: fleet-ingestion
+      KAFKA_SESSION_TIMEOUT_MS: "10000"
+      DATABASE_URL: postgresql://fleet:fleet@timescaledb:5432/fleet
+      BATCH_SIZE: "500"
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  # Agente operativo (LangChain + herramientas HTTP de solo lectura hacia la API).
+  # Arranca aunque falte la credencial: informa "requiere configuración".
+  # Credenciales y modelo: archivo .env en la raíz (ver .env.example).
+  agent:
+    build:
+      context: .
+      dockerfile: services/agent/Dockerfile
+    ports:
+      - "${AGENT_PORT:-8100}:8100"
+    environment:
+      FLEET_API_URL: http://api:8000
+      AGENT_PROVIDER: ${AGENT_PROVIDER:-anthropic}
+      AGENT_MODEL: ${AGENT_MODEL:-claude-opus-5-5}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      AGENT_EFFORT: ${AGENT_EFFORT:-low}
+      AGENT_REFUSAL_FALLBACK: ${AGENT_REFUSAL_FALLBACK:-true}
+      AGENT_MODEL_TIMEOUT_S: ${AGENT_MODEL_TIMEOUT_S:-30}
+      AGENT_REQUEST_TIMEOUT_S: ${AGENT_REQUEST_TIMEOUT_S:-60}
+      AGENT_MAX_CONCURRENT_CHATS: ${AGENT_MAX_CONCURRENT_CHATS:-4}
+      AGENT_MAX_STEPS: ${AGENT_MAX_STEPS:-5}
+      AGENT_MAX_TOOL_CALLS: ${AGENT_MAX_TOOL_CALLS:-6}
+      AGENT_MAX_OUTPUT_TOKENS: ${AGENT_MAX_OUTPUT_TOKENS:-4096}
+      AGENT_MAX_QUESTION_CHARS: ${AGENT_MAX_QUESTION_CHARS:-500}
+      AGENT_MAX_TOOL_ITEMS: ${AGENT_MAX_TOOL_ITEMS:-25}
+      # Zona horaria en que el asistente presenta las fechas (los datos siguen en UTC).
+      AGENT_DISPLAY_TIMEZONE: ${AGENT_DISPLAY_TIMEZONE:-America/Bogota}
+      FLEET_CONNECT_TIMEOUT_S: ${FLEET_CONNECT_TIMEOUT_S:-2}
+      FLEET_READ_TIMEOUT_S: ${FLEET_READ_TIMEOUT_S:-6}
+      FLEET_RETRIES: ${FLEET_RETRIES:-2}
+      CB_FAILURE_THRESHOLD: ${CB_FAILURE_THRESHOLD:-3}
+      CB_RECOVERY_S: ${CB_RECOVERY_S:-30}
+      CB_HALF_OPEN_MAX_CALLS: ${CB_HALF_OPEN_MAX_CALLS:-1}
+      # Mismo umbral de "desactualizado" que el portal.
+      STALE_AFTER_SECONDS: ${PORTAL_STALE_AFTER_SECONDS:-120}
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8100/health')\""]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  # Portal React servido por nginx, con proxy de /v1 (REST y SSE) a la API
+  # y de /v1/chat al agente.
+  portal:
+    build:
+      context: services/portal
+    ports:
+      # 8088 por defecto (en este equipo 8080 lo usa el listener de Oracle).
+      - "${PORTAL_PORT:-8088}:80"
+    environment:
+      API_UPSTREAM: api:8000
+      AGENT_UPSTREAM: agent:8100
+      PORTAL_STALE_AFTER_SECONDS: ${PORTAL_STALE_AFTER_SECONDS:-120}
+      PORTAL_CONNECTION_TIMEOUT_SECONDS: "45"
+      PORTAL_SSE_READ_TIMEOUT: 120s
+      # Mayor que AGENT_REQUEST_TIMEOUT_S para que el agente responda primero.
+      PORTAL_CHAT_READ_TIMEOUT: 90s
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Simulador de demostración: docker compose --profile demo up simulator
+  simulator:
+    profiles: ["demo"]
+    image: python:3.12-slim
+    volumes:
+      - ./scripts:/scripts:ro
+    command: >
+      python -u /scripts/simulate.py --url http://api:8000
+      --vehicles ${SIM_VEHICLES:-8} --interval ${SIM_INTERVAL:-2} --duration ${SIM_DURATION:-0}
+    stop_signal: SIGINT
+    depends_on:
+      api:
+        condition: service_healthy
+
+  # Escenarios de demostración de alertas (datos ficticios, vehículos DEMO-*):
+  # docker compose --profile demo run --rm demo-alerts
+  demo-alerts:
+    profiles: ["demo"]
+    image: python:3.12-slim
+    volumes:
+      - ./scripts:/scripts:ro
+    entrypoint: ["python", "-u", "/scripts/demo_alerts.py", "--url", "http://api:8000"]
+    stop_signal: SIGINT
+    depends_on:
+      api:
+        condition: service_healthy
+
+  # Pruebas: docker compose --profile test run --rm tests
+  tests:
+    profiles: ["test"]
+    build:
+      context: .
+      dockerfile: tests/Dockerfile
+    environment:
+      API_URL: http://api:8000
+      PORTAL_URL: http://portal
+      DATABASE_URL: postgresql://fleet:fleet@timescaledb:5432/fleet
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_GROUP_ID: fleet-ingestion
+      DB_READ_TIMEOUT_S: ${DB_READ_TIMEOUT_S:-3}
+      VEHICLES_POLL_INTERVAL_S: ${VEHICLES_POLL_INTERVAL_S:-1}
+      ALERTS_EVAL_INTERVAL_S: ${ALERTS_EVAL_INTERVAL_S:-5}
+      AGENT_URL: http://agent:8100
+      # Prueba opcional con el proveedor real: AGENT_REAL_PROVIDER_TEST=1.
+      AGENT_REAL_PROVIDER_TEST: ${AGENT_REAL_PROVIDER_TEST:-0}
+    depends_on:
+      api:
+        condition: service_healthy
+      consumer:
+        condition: service_started
+      agent:
+        condition: service_healthy
+      portal:
+        condition: service_started
+
+volumes:
+  tsdb-data:
+  kafka-data:

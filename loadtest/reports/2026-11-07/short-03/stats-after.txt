@@ -1,0 +1,6 @@
+fleet-api-1 cpu=81.38% mem=59.2MiB / 3.778GiB
+fleet-portal-1 cpu=0.00% mem=5.246MiB / 3.778GiB
+fleet-agent-1 cpu=76.88% mem=79.72MiB / 3.778GiB
+fleet-consumer-1 cpu=0.12% mem=38.9MiB / 3.778GiB
+fleet-kafka-1 cpu=81.98% mem=1.003GiB / 3.778GiB
+fleet-timescaledb-1 cpu=2.73% mem=90.39MiB / 3.778GiB

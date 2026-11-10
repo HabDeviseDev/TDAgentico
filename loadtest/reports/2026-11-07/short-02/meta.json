@@ -1,0 +1,49 @@
+{
+  "run_id": "short-02",
+  "mode": "single",
+  "vehicles": 20,
+  "rate": 10.0,
+  "duration_s": 30,
+  "seed": 7,
+  "iterations": 300,
+  "batch_size": null,
+  "planned_requests": 300,
+  "planned_counts": {
+    "new": 255,
+    "dup": 30,
+    "invalid": 15
+  },
+  "planned_unique_identities": 255,
+  "vehicle_ids": [
+    "LT-short-02-0001",
+    "LT-short-02-0002",
+    "LT-short-02-0003",
+    "LT-short-02-0004",
+    "LT-short-02-0005",
+    "LT-short-02-0006",
+    "LT-short-02-0007",
+    "LT-short-02-0008",
+    "LT-short-02-0009",
+    "LT-short-02-0010",
+    "LT-short-02-0011",
+    "LT-short-02-0012",
+    "LT-short-02-0013",
+    "LT-short-02-0014",
+    "LT-short-02-0015",
+    "LT-short-02-0016",
+    "LT-short-02-0017",
+    "LT-short-02-0018",
+    "LT-short-02-0019",
+    "LT-short-02-0020"
+  ],
+  "invalid_rule": "lat fuera de rango (95.0 > 90)",
+  "block": {
+    "size": 20,
+    "quota": {
+      "new": 17,
+      "dup": 2,
+      "invalid": 1
+    }
+  },
+  "prepared_at": "2026-11-07T01:51:50.121754+00:00"
+}

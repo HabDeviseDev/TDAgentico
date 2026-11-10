@@ -1,0 +1,14 @@
+# 02-api-productor
+# inicio: 2026-11-08T16:41:35Z
+# comando: docker compose exec -T api python -c "import app.ingest as m; print(\"ResilientProducer presente:\", hasattr(m, \"ResilientProducer\"))";
+  docker compose ps --format "{{.Service}}\t{{.State}}\t{{.Status}}"
+
+ResilientProducer presente: True
+agent	running	Up 4 minutes (healthy)
+api	running	Up About a minute (healthy)
+consumer	running	Up About a minute
+kafka	running	Up 4 minutes (healthy)
+portal	running	Up 26 seconds
+timescaledb	running	Up 4 minutes (healthy)
+
+# fin: 2026-11-08T16:41:58Z  código: 0  duración: 23 s

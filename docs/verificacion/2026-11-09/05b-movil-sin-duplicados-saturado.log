@@ -1,0 +1,14 @@
+# 05b-movil-sin-duplicados
+# inicio: 2026-11-09T22:48:14Z
+# comando: docker compose up -d --wait timescaledb && docker compose exec -T timescaledb psql -U fleet -d fleet -c "WITH v AS (SELECT vehicle_id FROM position_history WHERE vehicle_id LIKE 'MOVIL-DEMO-%' ORDER BY ingested_at DESC LIMIT 1) SELECT h.vehicle_id, count(*) AS filas_historial, count(DISTINCT h.event_id) AS event_ids_distintos, (SELECT count(*) FROM ingested_events e WHERE e.vehicle_id = h.vehicle_id) AS ingested_events FROM position_history h JOIN v USING (vehicle_id) GROUP BY h.vehicle_id"
+
+ Container fleet-timescaledb-1 Running 
+ Container fleet-timescaledb-1 Waiting 
+ Container fleet-timescaledb-1 Healthy 
+    vehicle_id     | filas_historial | event_ids_distintos | ingested_events 
+-------------------+-----------------+---------------------+-----------------
+ MOVIL-DEMO-742a72 |               8 |                   8 |               8
+(1 row)
+
+
+# fin: 2026-11-09T22:48:57Z  código: 0  duración: 43 s

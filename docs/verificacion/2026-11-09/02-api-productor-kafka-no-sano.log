@@ -1,0 +1,8 @@
+# 02-api-productor
+# inicio: 2026-11-09T23:04:54Z
+# comando: docker compose exec -T api python -c "import app.ingest as m; print(\"ResilientProducer presente:\", hasattr(m, \"ResilientProducer\"))";
+  docker compose ps --format "{{.Service}}\t{{.State}}\t{{.Status}}"
+
+service "api" is not running
+
+# fin: 2026-11-09T23:05:07Z  código: 1  duración: 13 s

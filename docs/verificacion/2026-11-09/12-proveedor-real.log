@@ -1,0 +1,93 @@
+# 12-proveedor-real
+# inicio: 2026-11-10T00:53:58Z
+# comando: docker compose up -d --wait && AGENT_REAL_PROVIDER_TEST=1 docker compose --profile test run --rm -T tests tests/acceptance/test_agent_service.py -v -rfEs -p no:cacheprovider
+
+ Container fleet-agent-1 Starting 
+ Container fleet-kafka-1 Starting 
+ Container fleet-timescaledb-1 Starting 
+ Container fleet-agent-1 Started 
+ Container fleet-kafka-1 Started 
+ Container fleet-kafka-1 Waiting 
+ Container fleet-timescaledb-1 Started 
+ Container fleet-timescaledb-1 Waiting 
+ Container fleet-timescaledb-1 Healthy 
+ Container fleet-migrate-1 Starting 
+ Container fleet-migrate-1 Started 
+ Container fleet-kafka-1 Healthy 
+ Container fleet-kafka-init-1 Starting 
+ Container fleet-kafka-init-1 Started 
+ Container fleet-kafka-init-1 Waiting 
+ Container fleet-migrate-1 Waiting 
+ Container fleet-migrate-1 Waiting 
+ Container fleet-kafka-init-1 Waiting 
+ Container fleet-migrate-1 Exited 
+ Container fleet-migrate-1 Exited 
+ Container fleet-kafka-init-1 Exited 
+ Container fleet-consumer-1 Starting 
+ Container fleet-kafka-init-1 Exited 
+ Container fleet-api-1 Starting 
+ Container fleet-consumer-1 Started 
+ Container fleet-api-1 Started 
+ Container fleet-api-1 Waiting 
+ Container fleet-api-1 Healthy 
+ Container fleet-portal-1 Starting 
+ Container fleet-portal-1 Started 
+ Container fleet-migrate-1 Waiting 
+ Container fleet-kafka-init-1 Waiting 
+ Container fleet-portal-1 Waiting 
+ Container fleet-consumer-1 Waiting 
+ Container fleet-timescaledb-1 Waiting 
+ Container fleet-api-1 Waiting 
+ Container fleet-agent-1 Waiting 
+ Container fleet-kafka-1 Waiting 
+ Container fleet-migrate-1 Exited 
+ Container fleet-kafka-init-1 Exited 
+ Container fleet-agent-1 Healthy 
+ Container fleet-timescaledb-1 Healthy 
+ Container fleet-api-1 Healthy 
+ Container fleet-kafka-1 Healthy 
+ Container fleet-consumer-1 Healthy 
+ Container fleet-portal-1 Healthy 
+ Container fleet-portal-1 Running 
+ Container fleet-kafka-1 Running 
+ Container fleet-agent-1 Running 
+ Container fleet-consumer-1 Running 
+ Container fleet-api-1 Running 
+ Container fleet-timescaledb-1 Running 
+ Container fleet-timescaledb-1 Waiting 
+ Container fleet-kafka-1 Waiting 
+ Container fleet-kafka-1 Healthy 
+ Container fleet-kafka-init-1 Starting 
+ Container fleet-timescaledb-1 Healthy 
+ Container fleet-migrate-1 Starting 
+ Container fleet-kafka-init-1 Started 
+ Container fleet-migrate-1 Started 
+ Container fleet-kafka-init-1 Waiting 
+ Container fleet-migrate-1 Waiting 
+ Container fleet-migrate-1 Waiting 
+ Container fleet-kafka-init-1 Waiting 
+ Container fleet-migrate-1 Exited 
+ Container fleet-migrate-1 Exited 
+ Container fleet-kafka-init-1 Exited 
+ Container fleet-kafka-init-1 Exited 
+ Container fleet-api-1 Waiting 
+ Container fleet-api-1 Healthy 
+ Container fleet-api-1 Waiting 
+ Container fleet-agent-1 Waiting 
+ Container fleet-agent-1 Healthy 
+ Container fleet-api-1 Healthy 
+ Container fleet-tests-run-49144c6c388e Creating 
+ Container fleet-tests-run-49144c6c388e Created 
+============================= test session starts ==============================
+platform linux -- Python 3.12.16, pytest-8.3.4, pluggy-1.7.0 -- /usr/local/bin/python3.12
+rootdir: /repo
+configfile: pytest.ini
+plugins: anyio-4.16.0, langsmith-0.14.17
+collecting ... collected 3 items
+
+tests/acceptance/test_agent_service.py::test_chat_por_el_mismo_origen_del_portal PASSED [ 33%]
+tests/acceptance/test_agent_service.py::test_herramientas_reales_contra_la_api PASSED [ 66%]
+tests/acceptance/test_agent_service.py::test_proveedor_real PASSED       [100%]
+
+============================== 3 passed in 32.34s ==============================
+# fin: 2026-11-10T01:04:02Z  código: 0  duración: 604 s

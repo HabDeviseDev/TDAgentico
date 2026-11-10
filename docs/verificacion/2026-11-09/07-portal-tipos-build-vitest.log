@@ -1,0 +1,110 @@
+# 07-portal-tipos-build-vitest
+# inicio: 2026-11-09T23:49:19Z
+# comando: docker build --no-cache --progress=plain --target test services/portal
+
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 DONE 0.0s
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile:
+#1 transferring dockerfile: 687B 1.3s done
+#1 DONE 2.8s
+
+#2 [internal] load metadata for docker.io/library/node:20.18-alpine
+#2 DONE 2.6s
+
+#3 [internal] load .dockerignore
+#3 transferring context:
+#3 transferring context: 58B 0.0s done
+#3 DONE 1.5s
+
+#4 [internal] load build context
+#4 DONE 0.0s
+
+#5 [build 1/6] FROM docker.io/library/node:20.18-alpine@sha256:053c1d99e608fe9fa0db6821edd84276277c0a663cd181f4a3e59ee20f5f07ea
+#5 resolve docker.io/library/node:20.18-alpine@sha256:053c1d99e608fe9fa0db6821edd84276277c0a663cd181f4a3e59ee20f5f07ea
+#5 resolve docker.io/library/node:20.18-alpine@sha256:053c1d99e608fe9fa0db6821edd84276277c0a663cd181f4a3e59ee20f5f07ea 2.3s done
+#5 DONE 2.8s
+
+#6 [build 2/6] WORKDIR /app
+#6 CACHED
+
+#4 [internal] load build context
+#4 transferring context: 1.72kB 0.1s done
+#4 DONE 1.7s
+
+#7 [build 3/6] COPY package.json package-lock.json ./
+#7 DONE 9.4s
+
+#8 [build 4/6] RUN npm ci --no-audit --no-fund
+#8 93.16 
+#8 93.16 added 104 packages in 49s
+#8 93.16 npm notice
+#8 93.16 npm notice New major version of npm available! 10.8.2 -> 12.2.2
+#8 93.16 npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.2
+#8 93.16 npm notice To update run: npm install -g npm@12.2.2
+#8 93.16 npm notice
+#8 DONE 97.2s
+
+#9 [build 5/6] COPY . .
+#9 DONE 4.7s
+
+#10 [build 6/6] RUN npm run build
+#10 4.526 
+#10 4.526 > fleet-portal@1.0.0 build
+#10 4.526 > tsc --noEmit -p . && vite build
+#10 4.526 
+#10 53.47 vite v5.4.11 building for production...
+#10 53.61 transforming...
+#10 80.83 ✓ 92 modules transformed.
+#10 82.23 rendering chunks...
+#10 82.30 computing gzip size...
+#10 82.33 dist/index.html                   0.41 kB │ gzip:   0.27 kB
+#10 82.33 dist/assets/index-DR0A20uy.css   27.46 kB │ gzip:   9.32 kB
+#10 82.33 dist/assets/index-DTp-MMH6.js   328.53 kB │ gzip: 102.00 kB
+#10 82.33 ✓ built in 28.79s
+#10 DONE 84.3s
+
+#11 [test 1/1] RUN npm test
+#11 10.86 
+#11 10.86 > fleet-portal@1.0.0 test
+#11 10.86 > vitest run
+#11 10.86 
+#11 11.65 
+#11 11.65  RUN  v2.1.8 /app
+#11 11.65 
+#11 13.00  ✓ src/state/fleetState.test.ts (6 tests) 45ms
+#11 13.02  ✓ src/state/alertsState.test.ts (6 tests) 45ms
+#11 13.03  ✓ src/lib/markdown.test.ts (10 tests) 70ms
+#11 14.35  ✓ src/lib/duration.test.ts (3 tests) 61ms
+#11 14.42  ✓ src/lib/chatFormat.test.ts (6 tests) 70ms
+#11 14.73  ✓ src/components/ChatMarkdown.test.tsx (4 tests) 128ms
+#11 15.43  ✓ src/lib/freshness.test.ts (4 tests) 11ms
+#11 15.45 
+#11 15.46  Test Files  7 passed (7)
+#11 15.46       Tests  39 passed (39)
+#11 15.46    Start at  23:53:25
+#11 15.47    Duration  3.82s (transform 1.08s, setup 0ms, collect 2.10s, tests 429ms, environment 16ms, prepare 2.86s)
+#11 15.47 
+#11 DONE 18.4s
+
+#12 exporting to image
+#12 exporting layers
+#12 exporting layers 30.5s done
+#12 exporting manifest sha256:3312fa0dcb579ff3a8ae909115f4cb1b6e48ac3f86fab92cc1ea8c8133415a8e
+#12 exporting manifest sha256:3312fa0dcb579ff3a8ae909115f4cb1b6e48ac3f86fab92cc1ea8c8133415a8e 1.7s done
+#12 exporting config sha256:bb93e56c89fec3f960077e20cb0b7480ff04db7a4bb74532a288ad79d37ac4eb
+#12 exporting config sha256:bb93e56c89fec3f960077e20cb0b7480ff04db7a4bb74532a288ad79d37ac4eb 1.6s done
+#12 exporting attestation manifest sha256:3f79f5b5060fe34d2de796475828e41b685dfa2ae4e0f190c6ac753fc7df953e
+#12 exporting attestation manifest sha256:3f79f5b5060fe34d2de796475828e41b685dfa2ae4e0f190c6ac753fc7df953e 1.8s done
+#12 exporting manifest list sha256:7fa34552be7675456486ea5254c786a6af41eb47e535b23c689079ec91337e03
+#12 exporting manifest list sha256:7fa34552be7675456486ea5254c786a6af41eb47e535b23c689079ec91337e03 1.2s done
+#12 naming to moby-dangling@sha256:7fa34552be7675456486ea5254c786a6af41eb47e535b23c689079ec91337e03
+#12 naming to moby-dangling@sha256:7fa34552be7675456486ea5254c786a6af41eb47e535b23c689079ec91337e03 0.2s done
+#12 unpacking to moby-dangling@sha256:7fa34552be7675456486ea5254c786a6af41eb47e535b23c689079ec91337e03
+#12 unpacking to moby-dangling@sha256:7fa34552be7675456486ea5254c786a6af41eb47e535b23c689079ec91337e03 61.2s done
+#12 DONE 99.9s
+
+# fin: 2026-11-09T23:55:24Z  código: 0  duración: 365 s

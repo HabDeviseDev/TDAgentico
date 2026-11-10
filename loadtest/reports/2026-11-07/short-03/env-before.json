@@ -1,0 +1,10 @@
+{
+  "phase": "before", "recorded_at": "2026-11-07T01:54:39Z",
+  "git_commit": "b7cdc62", "git_dirty": true,
+  "k6": "k6 v2.3.0 (commit/e088784614, go1.27.1, linux/amd64)",
+  "docker": "29.9.2",
+  "docker_cpus": 4,
+  "docker_mem_bytes": 4056502272,
+  "compose_project": "fleet", "network": "fleet_default", "api_url": "http://api:8000",
+  "args": "load short-03 20 10 30 7"
+}

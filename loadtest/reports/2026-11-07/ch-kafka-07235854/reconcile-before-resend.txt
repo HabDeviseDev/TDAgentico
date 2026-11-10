@@ -1,0 +1,15 @@
+# Reconciliación ch-kafka-07235854
+
+- Generado: 2026-11-08T00:06:59.396725+00:00 · commit `4ca1f2c`
+- Parámetros: {"mode": "single", "vehicles": 30, "rate": 10.0, "duration_s": 150, "seed": 1, "iterations": 1500, "batch_size": null, "planned_requests": 1500}
+- Planificado: {"counts": {"new": 1275, "dup": 150, "invalid": 75}, "unique_identities": 1275}
+- Ejecutado (por tipo y resultado): {"new": {"confirmed": 452, "sent": 1242, "ambiguous": 790, "not_sent": 33}, "invalid": {"expected_rejection": 73, "sent": 73, "not_sent": 2}, "dup": {"confirmed": 52, "sent": 146, "ambiguous": 94, "not_sent": 4}}
+- Identidades: {"identities": 1350, "confirmed": 453, "ambiguous": 789, "ambiguous_persisted": 79, "invalid": 75, "not_sent": 33, "unexpected": 0, "persisted_ok": 453, "vehicles_checked": 30}
+- Ambiguos: 789 (persistidos 79, no persistidos 710)
+- DLQ: {"checked": true, "scanned": 0}, mensajes de la ejecución: 0
+- Espera: 1.4 s (máx. 60.0), lag final 0
+- Tiempo hasta persistencia (ms): {"p50": 778.236, "p95": 33815.135, "p99": 40934.472}
+- Discrepancias: 0
+- **Resultado: OK**
+
+

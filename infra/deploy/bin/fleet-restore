@@ -1,0 +1,174 @@
+#!/bin/bash
+# Restaura un respaldo de fleet-backup sobre la base "fleet".
+# DESTRUCTIVO: reemplaza la base actual. Requiere --yes y elegir el modo:
+#
+#   fleet-restore <origen> --yes --replay
+#   fleet-restore <origen> --yes --no-replay
+#
+#   <origen>     /data/backups/fleet-<UTC>.dump o s3://<bucket>/postgres/fleet-<UTC>.dump
+#                (los metadatos fleet-<UTC>.meta.json se buscan junto al dump)
+#   --replay     tras restaurar, mueve los offsets del grupo de ingesta a los
+#                guardados en los metadatos para reingresar desde Kafka lo
+#                posterior al respaldo. Exige metadatos válidos.
+#   --no-replay  solo restaura la base; lo ingerido después del respaldo no
+#                se recupera. Los metadatos son opcionales, pero si existen
+#                deben corresponder al dump.
+#
+# Fase 1 (sin cambios): descarga y valida dump y metadatos, comprueba Kafka
+# si hay --replay y valida el archivo con pg_restore --list. Si algo falla,
+# termina SIN detener servicios ni tocar la base.
+# Fase 2 (destructiva): detiene escritores, recrea la base, restaura, mueve
+# offsets (--replay), migra y arranca.
+set -euo pipefail
+# shellcheck source=infra/deploy/lib.sh
+source "${FLEET_LIB:-/opt/fleet/current/infra/deploy/lib.sh}"
+# shellcheck source=/dev/null
+source "$FLEET_ETC/deploy.env"
+
+usage() {
+  echo "Uso: fleet-restore <archivo.dump | s3://bucket/postgres/archivo.dump> --yes (--replay | --no-replay)" >&2
+  exit 2
+}
+src="" confirm=0 mode=""
+for arg in "$@"; do
+  case "$arg" in
+    --yes) confirm=1 ;;
+    --replay | --no-replay) [ -z "$mode" ] || usage; mode=${arg#--} ;;
+    -*) usage ;;
+    *) [ -z "$src" ] || usage; src=$arg ;;
+  esac
+done
+[ -n "$src" ] || usage
+[ -n "$mode" ] || { echo "Indique --replay o --no-replay de forma explícita." >&2; usage; }
+[ "$confirm" = 1 ] || { echo "Reemplaza la base actual. Repita con --yes para confirmar." >&2; exit 2; }
+
+# Error de la fase 1: nada cambió.
+preflight_fail() {
+  echo "ERROR $*" >&2
+  echo "No se detuvo ningún servicio ni se modificó la base." >&2
+  exit 1
+}
+
+name=$(basename "$src")
+[[ "$name" =~ ^fleet-[0-9]{8}T[0-9]{6}Z\.dump$ ]] || preflight_fail "nombre de respaldo inesperado: $name (se espera fleet-<AAAAMMDDTHHMMSSZ>.dump)"
+id=${name%.dump}
+meta_name="$id.meta.json"
+
+mkdir -p "$FLEET_DATA_DIR/backups"
+work=$(mktemp -d "$FLEET_DATA_DIR/backups/restore.XXXXXX")
+trap 'rm -rf "$work"' EXIT
+dump="$work/$name"
+meta="$work/$meta_name"
+
+# --- Fase 1: obtener y validar -------------------------------------------
+fleet_log "fase 1: validación de $id ($mode)"
+have_meta=0
+if [[ "$src" == s3://* ]]; then
+  aws s3 cp --region "$FLEET_REGION" --only-show-errors "$src" "$dump" ||
+    preflight_fail "no se pudo descargar $src"
+  if aws s3 cp --region "$FLEET_REGION" --only-show-errors "${src%/*}/$meta_name" "$meta" 2> "$work/meta.err"; then
+    have_meta=1
+  else
+    fleet_log "metadatos no disponibles en ${src%/*}/$meta_name: $(tr '\n' ' ' < "$work/meta.err")"
+  fi
+else
+  [ -f "$src" ] || preflight_fail "no existe $src"
+  cp "$src" "$dump"
+  if [ -f "$(dirname "$src")/$meta_name" ]; then
+    cp "$(dirname "$src")/$meta_name" "$meta"
+    have_meta=1
+  fi
+fi
+
+if [ "$have_meta" = 1 ]; then
+  jq -e 'type == "object"' "$meta" > /dev/null 2>&1 || preflight_fail "$meta_name no es JSON válido"
+  [ "$(jq -r '.format' "$meta")" = 1 ] || preflight_fail "$meta_name: formato no soportado"
+  # Ambos archivos deben ser del mismo respaldo: identificador, nombre,
+  # tamaño y SHA-256 del dump.
+  [ "$(jq -r '.backup_id' "$meta")" = "$id" ] && [ "$(jq -r '.dump_file' "$meta")" = "$name" ] ||
+    preflight_fail "$meta_name pertenece a otro respaldo ($(jq -r '.dump_file' "$meta"))"
+  [ "$(jq -r '.dump_bytes' "$meta")" = "$(stat -c %s "$dump")" ] ||
+    preflight_fail "el tamaño de $name no coincide con sus metadatos"
+  [ "$(jq -r '.dump_sha256' "$meta")" = "$(fleet_sha256 "$dump")" ] ||
+    preflight_fail "el SHA-256 de $name no coincide con sus metadatos"
+  fleet_log "metadatos válidos: el dump coincide en tamaño y SHA-256"
+elif [ "$mode" = replay ]; then
+  preflight_fail "--replay requiere $meta_name (offsets de Kafka). Para restaurar sin reingesta use --no-replay."
+else
+  fleet_log "AVISO sin metadatos: no se puede verificar el checksum del dump; se restaura sin reingesta"
+fi
+
+if [ "$mode" = replay ]; then
+  jq -e --arg g "$FLEET_KAFKA_GROUP" --arg t "$FLEET_KAFKA_TOPIC" '
+    (.kafka | type == "object")
+    and .kafka.group == $g and .kafka.topic == $t
+    and (.kafka.offsets | type == "array" and length > 0)
+    and all(.kafka.offsets[];
+            (.partition | type == "number" and . >= 0 and . == floor)
+            and (.offset | type == "number" and . >= 0 and . == floor))
+    and ([.kafka.offsets[].partition] | length == (unique | length))' "$meta" > /dev/null ||
+    preflight_fail "$meta_name no tiene offsets válidos de $FLEET_KAFKA_GROUP/$FLEET_KAFKA_TOPIC (el respaldo se hizo sin Kafka disponible). Use --no-replay."
+  partitions=$(fleet_kafka_partitions) ||
+    preflight_fail "Kafka no responde; no se puede comprobar el topic $FLEET_KAFKA_TOPIC"
+  [ -n "$partitions" ] || preflight_fail "el topic $FLEET_KAFKA_TOPIC no existe o no tiene particiones"
+  for p in $(jq -r '.kafka.offsets[].partition' "$meta"); do
+    grep -qx "$p" <<<"$partitions" || preflight_fail "la partición $p de los metadatos no existe en $FLEET_KAFKA_TOPIC"
+  done
+  # Eventos que la retención de Kafka ya borró: no se pueden reingresar.
+  earliest=$(fleet_kafka_earliest_offsets || true)
+  while read -r p off; do
+    [ -n "$p" ] || continue
+    saved=$(jq -r --argjson p "$p" '.kafka.offsets[] | select(.partition == $p) | .offset' "$meta")
+    if [ -n "$saved" ] && [ "$saved" -lt "$off" ]; then
+      fleet_log "AVISO partición $p: los offsets $saved..$((off - 1)) ya no están en Kafka; esos eventos no se reingresarán"
+    fi
+  done <<<"$earliest"
+  jq -r --arg t "$FLEET_KAFKA_TOPIC" '.kafka.offsets[] | "\($t),\(.partition),\(.offset)"' "$meta" > "$work/offsets.csv"
+  fleet_log "replay preparado: $(tr '\n' ' ' < "$work/offsets.csv")"
+fi
+
+fleet_compose exec -T timescaledb pg_restore --list < "$dump" > /dev/null 2> "$work/list.err" ||
+  preflight_fail "$name no es un archivo válido de pg_restore: $(head -n 3 "$work/list.err")"
+fleet_log "fase 1 completa: el respaldo es válido"
+
+# --- Fase 2: destructiva -------------------------------------------------
+trap 'echo "ERROR en la fase 2 (línea $LINENO): api, consumer y agent pueden seguir detenidos. Revise y repita fleet-restore." >&2; rm -rf "$work"' ERR
+
+psql_admin() { fleet_compose exec -T timescaledb psql -v ON_ERROR_STOP=1 -q -U fleet "$@"; }
+
+fleet_log "fase 2: deteniendo escritores (api, consumer, agent)"
+fleet_compose stop api consumer agent
+
+fleet_log "recreando la base fleet"
+psql_admin -d postgres -c "DROP DATABASE IF EXISTS fleet WITH (FORCE)"
+psql_admin -d postgres -c "CREATE DATABASE fleet OWNER fleet"
+psql_admin -d fleet -c "CREATE EXTENSION IF NOT EXISTS timescaledb" -c "SELECT timescaledb_pre_restore()"
+
+fleet_log "pg_restore"
+# La extensión ya existe (pre_restore la necesita): ese error es esperado.
+# Cualquier otro error detiene la restauración con los servicios detenidos.
+if ! fleet_compose exec -T timescaledb pg_restore -U fleet -d fleet --no-owner < "$dump" 2> "$work/pg_restore.err"; then
+  if grep -E "error:" "$work/pg_restore.err" | grep -vq 'extension "timescaledb" already exists'; then
+    cat "$work/pg_restore.err" >&2
+    echo "ERROR pg_restore falló; api, consumer y agent siguen detenidos" >&2
+    exit 1
+  fi
+fi
+psql_admin -d fleet -c "SELECT timescaledb_post_restore()"
+
+if [ "$mode" = replay ]; then
+  # El grupo está inactivo (consumer detenido): Kafka permite mover offsets.
+  fleet_log "moviendo offsets de $FLEET_KAFKA_GROUP a los del respaldo"
+  # shellcheck disable=SC2016  # $1 se expande dentro del contenedor
+  fleet_compose exec -T kafka sh -c 'cat > /tmp/fleet-replay.csv &&
+    /opt/kafka/bin/kafka-consumer-groups.sh --bootstrap-server localhost:9092 --group "$1" \
+      --reset-offsets --from-file /tmp/fleet-replay.csv --execute; rc=$?; rm -f /tmp/fleet-replay.csv; exit $rc' \
+    sh "$FLEET_KAFKA_GROUP" < "$work/offsets.csv"
+else
+  fleet_log "sin replay: los offsets de $FLEET_KAFKA_GROUP no cambian; lo ingerido después del respaldo no se recupera"
+fi
+
+fleet_log "migraciones (idempotentes) y arranque"
+fleet_compose run --rm --no-deps migrate
+fleet_compose up -d api consumer agent
+fleet_log "restauración completa ($id, $mode); verifique con: fleet-ops status"

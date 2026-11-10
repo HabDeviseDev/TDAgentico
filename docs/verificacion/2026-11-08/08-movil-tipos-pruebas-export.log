@@ -1,0 +1,71 @@
+# 08-movil-tipos-pruebas-export
+# inicio: 2026-11-08T16:58:56Z
+# comando: docker run --rm -v 'C:/xampp/htdocs/TDAgentico/services/mobile:/app' -v fleet-mobile-modules:/app/node_modules -w /app node:22-bookworm-slim sh -c 'npm ci --no-audit --no-fund && npm run typecheck && npm test && npx expo export --platform android --output-dir /tmp/dist'
+
+
+added 491 packages in 1m
+npm notice
+npm notice New major version of npm available! 10.9.9 -> 12.2.2
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.2
+npm notice To update run: npm install -g npm@12.2.2
+npm notice
+
+> fleet-driver@1.0.0 typecheck
+> tsc --noEmit
+
+
+> fleet-driver@1.0.0 test
+> vitest run
+
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.1.0 [39m[90m/app[39m
+
+ [32m✓[39m test/contract.test.ts [2m([22m[2m22 tests[22m[2m)[22m[32m 68[2mms[22m[39m
+(node:73) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:72) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m test/capture.test.ts [2m([22m[2m13 tests[22m[2m)[22m[33m 5516[2mms[22m[39m
+   [32m✓[39m integración con la cola SQLite [2m(1)[22m
+     [33m[2m✓[22m[39m solo el inicio vigente guarda lecturas y detener conserva lo guardado[33m 5391[2mms[22m[39m
+ [32m✓[39m test/queue.test.ts [2m([22m[2m20 tests[22m[2m)[22m[33m 65760[2mms[22m[39m
+   [32m✓[39m persistencia [2m(3)[22m
+     [33m[2m✓[22m[39m la cola sobrevive a cerrar y volver a abrir SQLite[33m 5653[2mms[22m[39m
+     [33m[2m✓[22m[39m las migraciones son reproducibles e idempotentes[33m 1834[2mms[22m[39m
+     [33m[2m✓[22m[39m la configuración se guarda y cambiar de vehículo no modifica pendientes[33m 3286[2mms[22m[39m
+   [32m✓[39m envío y resultados [2m(12)[22m
+     [33m[2m✓[22m[39m un reintento conserva el event_id y el contenido exacto[33m 2930[2mms[22m[39m
+     [33m[2m✓[22m[39m respuesta perdida después de aceptar: se reenvía con la misma identidad[33m 2786[2mms[22m[39m
+     [33m[2m✓[22m[39m aceptación parcial de un lote[33m 7319[2mms[22m[39m
+     [33m[2m✓[22m[39m un rechazo definitivo se conserva con su motivo y no se reenvía[33m 3828[2mms[22m[39m
+     [33m[2m✓[22m[39m resultado ausente o inválido (sin resultado para el índice 1) deja el evento pendiente[33m 4166[2mms[22m[39m
+     [33m[2m✓[22m[39m resultado ausente o inválido (event_id cambiado en el índice 1) deja el evento pendiente[33m 3389[2mms[22m[39m
+     [33m[2m✓[22m[39m resultado ausente o inválido (índice 1 duplicado) deja el evento pendiente[33m 2918[2mms[22m[39m
+     [33m[2m✓[22m[39m resultado ausente o inválido (estado desconocido en el índice 1) deja el evento pendiente[33m 4926[2mms[22m[39m
+     [33m[2m✓[22m[39m resultado ausente o inválido (índice no numérico en el 1) deja el evento pendiente[33m 3104[2mms[22m[39m
+     [33m[2m✓[22m[39m respuesta 200 sin lista de resultados: todo queda pendiente[33m 4684[2mms[22m[39m
+     [33m[2m✓[22m[39m respuesta 200 resultados no son una lista: todo queda pendiente[33m 2749[2mms[22m[39m
+   [32m✓[39m coordinador [2m(4)[22m
+     [33m[2m✓[22m[39m disparadores simultáneos no generan envíos simultáneos ni duplicados[33m 4415[2mms[22m[39m
+     [33m[2m✓[22m[39m recupera un envío interrumpido por el cierre de la app[33m 3342[2mms[22m[39m
+     [33m[2m✓[22m[39m sin conexión no intenta enviar; al reconectar sí[33m 2766[2mms[22m[39m
+     [33m[2m✓[22m[39m las muestras omitidas no se envían[33m 1576[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m3 passed[39m[22m[90m (3)[39m
+[2m      Tests [22m [1m[32m55 passed[39m[22m[90m (55)[39m
+[2m   Start at [22m 17:00:42
+[2m   Duration [22m 67.63s[2m (tests 96%, transform 4%, import 1%)[22m
+
+Starting Metro Bundler
+
+Android Bundled 52719ms index.ts (683 modules)
+
+› android bundles (1):
+_expo/static/js/android/index-7a7bd8225d83f4eade13f917c000f6e8.hbc (1.8MB)
+
+› Files (1):
+metadata.json (150B)
+
+Exported: /tmp/dist
+
+# fin: 2026-11-08T17:02:53Z  código: 0  duración: 237 s

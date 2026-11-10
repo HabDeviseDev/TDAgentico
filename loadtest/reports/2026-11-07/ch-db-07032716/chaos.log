@@ -1,0 +1,42 @@
+[03:27:17] Escenario db · ejecución ch-db-07032716 · 30 vehículos, 10/s, 60s, falla en t+15s durante 25s
+[03:27:17] Levantando el proyecto fleet-chaos (puede tardar varios minutos la primera vez)…
+[03:29:24] La carga empezó; falla en 15s
+[03:29:54] Antes de la falla: mensajes=1338 confirmados=1330 lag=8
+[03:29:54] FALLA: docker compose -p fleet-chaos -f docker-compose.yml -f loadtest/compose.chaos.yml stop timescaledb
+[03:30:20] Con la falla (t+12s): mensajes=1595 confirmados=1406 lag=189
+[03:30:22] RECUPERACIÓN tras 28s: docker compose -p fleet-chaos -f docker-compose.yml -f loadtest/compose.chaos.yml start timescaledb
+[03:31:02] Tras arrancar: mensajes=1664 confirmados=1406 lag=258
+[03:31:16] k6 terminó (código 0)
+{"run_id": "ch-db-07032716", "mode": "single", "planned_requests": 600, "planned_counts": {"new": 510, "dup": 60, "invalid": 30}, "planned_unique_identities": 510}
+Ejecución ch-db-07032716 (ingest)
+  enviados: nuevos=510 reenvíos=60 inválidos=30
+  confirmados=570 rechazos_esperados=30 ambiguos=0 inesperados=0
+  iteraciones=601 tasa_real=10.02/s descartadas=0
+  latencia (ms) p50=6.12 p95=43.07 p99=128.33 max=242.17
+  umbrales: cumplidos
+k6 terminó con código 0 (99 = algún umbral no se cumplió)
+[03:31:54] Recuperación (1/3): mensajes=1664 confirmados=1406 lag=258
+[03:32:16] Recuperación (2/3): mensajes=1664 confirmados=1406 lag=258
+[03:32:38] Recuperación (3/3): mensajes=1664 confirmados=1664 lag=0
+[03:32:44] Reconciliación final (espera máx. 180s)…
+# Reconciliación ch-db-07032716
+
+- Generado: 2026-11-07T03:33:06.351625+00:00 · commit `b7cdc62`
+- Parámetros: {"mode": "single", "vehicles": 30, "rate": 10.0, "duration_s": 60, "seed": 1, "iterations": 600, "batch_size": null, "planned_requests": 600}
+- Planificado: {"counts": {"new": 510, "dup": 60, "invalid": 30}, "unique_identities": 510}
+- Ejecutado (por tipo y resultado): {"new": {"confirmed": 510, "sent": 510}, "invalid": {"expected_rejection": 30, "sent": 30}, "dup": {"confirmed": 60, "sent": 60}}
+- Identidades: {"identities": 540, "confirmed": 510, "ambiguous": 0, "ambiguous_persisted": 0, "invalid": 30, "not_sent": 0, "unexpected": 0, "persisted_ok": 510, "vehicles_checked": 30}
+- Ambiguos: 0 (persistidos 0, no persistidos 0)
+- DLQ: {"checked": true, "scanned": 0}, mensajes de la ejecución: 0
+- Espera: 0.2 s (máx. 180.0), lag final 0
+- Tiempo hasta persistencia (ms): {"p50": 1167.789, "p95": 142545.148, "p99": 143751.418}
+- Discrepancias: 0
+- **Resultado: OK**
+
+
+[03:33:13] Reconciliación: código 0 (0 = sin discrepancias)
+[03:33:14] Restaurando servicios del proyecto de caos (kafka, timescaledb, consumer, api)…
+api running
+consumer running
+kafka running
+timescaledb running

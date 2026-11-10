@@ -1,0 +1,59 @@
+{
+  "run_id": "ch-db-07032716",
+  "mode": "single",
+  "vehicles": 30,
+  "rate": 10.0,
+  "duration_s": 60,
+  "seed": 1,
+  "iterations": 600,
+  "batch_size": null,
+  "planned_requests": 600,
+  "planned_counts": {
+    "new": 510,
+    "dup": 60,
+    "invalid": 30
+  },
+  "planned_unique_identities": 510,
+  "vehicle_ids": [
+    "LT-ch-db-07032716-0001",
+    "LT-ch-db-07032716-0002",
+    "LT-ch-db-07032716-0003",
+    "LT-ch-db-07032716-0004",
+    "LT-ch-db-07032716-0005",
+    "LT-ch-db-07032716-0006",
+    "LT-ch-db-07032716-0007",
+    "LT-ch-db-07032716-0008",
+    "LT-ch-db-07032716-0009",
+    "LT-ch-db-07032716-0010",
+    "LT-ch-db-07032716-0011",
+    "LT-ch-db-07032716-0012",
+    "LT-ch-db-07032716-0013",
+    "LT-ch-db-07032716-0014",
+    "LT-ch-db-07032716-0015",
+    "LT-ch-db-07032716-0016",
+    "LT-ch-db-07032716-0017",
+    "LT-ch-db-07032716-0018",
+    "LT-ch-db-07032716-0019",
+    "LT-ch-db-07032716-0020",
+    "LT-ch-db-07032716-0021",
+    "LT-ch-db-07032716-0022",
+    "LT-ch-db-07032716-0023",
+    "LT-ch-db-07032716-0024",
+    "LT-ch-db-07032716-0025",
+    "LT-ch-db-07032716-0026",
+    "LT-ch-db-07032716-0027",
+    "LT-ch-db-07032716-0028",
+    "LT-ch-db-07032716-0029",
+    "LT-ch-db-07032716-0030"
+  ],
+  "invalid_rule": "lat fuera de rango (95.0 > 90)",
+  "block": {
+    "size": 20,
+    "quota": {
+      "new": 17,
+      "dup": 2,
+      "invalid": 1
+    }
+  },
+  "prepared_at": "2026-11-07T03:28:29.049060+00:00"
+}

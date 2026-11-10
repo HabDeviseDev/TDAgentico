@@ -1,0 +1,6 @@
+# 05-movil-e2e
+# inicio: 2026-11-09T22:42:52Z
+# comando: docker run --rm --network fleet_default -e API_URL=http://api:8000 -v 'C:/xampp/htdocs/TDAgentico/services/mobile:/app' -v fleet-mobile-modules:/app/node_modules -w /app node:22-bookworm-slim sh -c 'npm ci --no-audit --no-fund && npm run e2e'
+
+
+# fin: 2026-11-09T22:48:10Z  código: 137  duración: 320 s

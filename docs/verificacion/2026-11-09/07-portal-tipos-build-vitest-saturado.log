@@ -1,0 +1,27 @@
+# 07-portal-tipos-build-vitest
+# inicio: 2026-11-09T22:50:27Z
+# comando: docker build --no-cache --progress=plain --target test services/portal
+
+2026/11/09 17:51:23 http2: server: error reading preface from client //./pipe/dockerDesktopLinuxEngine: file has already been closed
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 DONE 0.0s
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile:
+#1 transferring dockerfile: 687B 3.0s done
+#1 DONE 4.9s
+
+#2 [internal] load metadata for docker.io/library/node:20.18-alpine
+#2 DONE 5.9s
+
+#3 [internal] load .dockerignore
+#3 transferring context:
+#3 transferring context: 58B 0.0s done
+#3 DONE 1.4s
+
+#4 [internal] load build context
+#4 DONE 0.0s
+
+#5 [build 1/6] FROM docker.io/library/node:20.18-alpine@sha256:053c1d99e608fe9fa0db6821edd84276277c0a663cd181f4a3e59ee20f5f07ea

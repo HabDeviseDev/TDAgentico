@@ -1,0 +1,56 @@
+# 05-movil-e2e
+# inicio: 2026-11-09T23:33:53Z
+# comando: docker run --rm --network fleet_default -e API_URL=http://api:8000 -v 'C:/xampp/htdocs/TDAgentico/services/mobile:/app' -v fleet-mobile-modules:/app/node_modules -w /app node:22-bookworm-slim sh -c 'npm ci --no-audit --no-fund && npm run e2e'
+
+
+added 491 packages in 12m
+npm notice
+npm notice New major version of npm available! 10.9.9 -> 12.2.2
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.2
+npm notice To update run: npm install -g npm@12.2.2
+npm notice
+
+> fleet-driver@1.0.0 e2e
+> vitest run --config vitest.e2e.mts
+
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.1.0 [39m[90m/app[39m
+
+(node:52) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+[90mstdout[2m | e2e/offline-walkthrough.e2e.ts[2m > [22m[2mcaptura, corte de red, cierre, reconexión y sincronización
+[22m[39m[1] Vehículo MOVIL-DEMO-9f382a, base local /tmp/walkthrough-MWAX7y/driver.db
+
+[90mstdout[2m | e2e/offline-walkthrough.e2e.ts[2m > [22m[2mcaptura, corte de red, cierre, reconexión y sincronización
+[22m[39m[2] Con conexión: {"pending":0,"sending":0,"accepted":3,"rejected":0,"skipped":0}
+
+[90mstdout[2m | e2e/offline-walkthrough.e2e.ts[2m > [22m[2mcaptura, corte de red, cierre, reconexión y sincronización
+[22m[39m[3] Sin conexión, 5 capturas: {"pending":5,"sending":0,"accepted":3,"rejected":0,"skipped":0}
+
+[90mstdout[2m | e2e/offline-walkthrough.e2e.ts[2m > [22m[2mcaptura, corte de red, cierre, reconexión y sincronización
+[22m[39m[4] App cerrada
+
+[90mstdout[2m | e2e/offline-walkthrough.e2e.ts[2m > [22m[2mcaptura, corte de red, cierre, reconexión y sincronización
+[22m[39m[5] App reabierta: {"pending":5,"sending":0,"accepted":3,"rejected":0,"skipped":0}, recuperados 0
+
+[90mstdout[2m | e2e/offline-walkthrough.e2e.ts[2m > [22m[2mcaptura, corte de red, cierre, reconexión y sincronización
+[22m[39m[6] Reconexión con respuesta perdida: {"pending":5,"sending":0,"accepted":3,"rejected":0,"skipped":0}
+
+[90mstdout[2m | e2e/offline-walkthrough.e2e.ts[2m > [22m[2mcaptura, corte de red, cierre, reconexión y sincronización
+[22m[39m[7] Reenvío con los mismos event_id: {"pending":0,"sending":0,"accepted":8,"rejected":0,"skipped":0}
+
+[90mstdout[2m | e2e/offline-walkthrough.e2e.ts[2m > [22m[2mcaptura, corte de red, cierre, reconexión y sincronización
+[22m[39m[8] Posición más reciente en la API: 2026-11-09T23:42:14.420000Z (última captura 2026-11-09T23:42:14.420Z)
+EVENT_IDS=a8744482-23e9-4ed4-92d8-585b5875e96d,e1279705-e040-4c70-a0b4-fd11ba1a49b7,6db5a837-f22a-4cea-bdd9-bc4953460044,80fd664a-1435-45c8-97d8-08045f9c07db,344f051a-8018-4773-aff1-04c505af2799,2ffd7ca5-c5c1-4f3f-8508-5cb38d4c42e2,223bfed1-2912-4f6e-ae46-3a9e8115e846,70205a89-c455-4239-a349-5cc6397c76b2
+VEHICLE=MOVIL-DEMO-9f382a
+
+ [32m✓[39m e2e/offline-walkthrough.e2e.ts [2m([22m[2m1 test[22m[2m)[22m[33m 10206[2mms[22m[39m
+   [33m[2m✓[22m[39m captura, corte de red, cierre, reconexión y sincronización[33m 10198[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m   Start at [22m 23:48:07
+[2m   Duration [22m 16.72s[2m (tests 72%, transform 26%, import 2%, worker 1%)[22m
+
+
+# fin: 2026-11-09T23:48:32Z  código: 0  duración: 880 s
